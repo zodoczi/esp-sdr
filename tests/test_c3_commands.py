@@ -15,8 +15,11 @@ class C3Commands(unittest.TestCase):
         handler = source[source.index('static void handle_command('):source.index('void app_main(')]
         stub = r'''
 #include <assert.h>
+void rx_recalibrate(unsigned mhz) {}
 #include "rx_tuning.h"
 #include <stdbool.h>
+static bool burst_version_command(const char *s) { return false; }
+static bool burst_gpio_command(const char *s) { return false; }
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,16 +30,18 @@ class C3Commands(unittest.TestCase):
 static unsigned frequency_mhz, captures, last_samples, last_format;
 static bool rx_ready;
 static unsigned calibrated_mhz,pll_mhz,pll_writes;
+static int pll_offset;
 static void set_chanfreq(unsigned mhz,unsigned mode) { calibrated_mhz=mhz; }
-static void phy_set_freq(unsigned mhz,int offset) { pll_mhz=mhz;pll_writes++; }
+static void phy_set_freq(unsigned mhz,int offset) { pll_mhz=mhz;pll_offset=offset;pll_writes++; }
 static int rx_filter;
-static unsigned rom1_chip_i2c_readReg(unsigned a,unsigned b,unsigned c) { return 4; }
+unsigned rom1_chip_i2c_readReg(unsigned a,unsigned b,unsigned c) { return 4; }
+void rom1_chip_i2c_writeReg(unsigned a,unsigned b,unsigned c,unsigned v) {}
+#include "rx_lo.h"
 static char response[256];
 static int burst_serial_port(void) { return 1; }
 static unsigned burst_serial_baud(void) { return 2000000; }
 #define spectrum_acquire NULL
 static bool spectrum_command(const char *s,unsigned f,void *acquire){return false;}
-static bool ring_test(const char *s){return false;}
 static void reply(const char *s) { snprintf(response,sizeof(response),"%s",s); }
 static bool gain_command(const char *s) { return false; }
 static unsigned gain_max(void) { return 79; }
@@ -78,7 +83,7 @@ int main(void) {
    bool channel=(f>=2412 && f<=2472 && (f-2412)%5==0)||f==2484;
    unsigned before=pll_writes;tune_rx(f);
    assert(calibrated_mhz==(channel?f:2412));
-   assert(pll_writes==before+!channel);if(!channel)assert(pll_mhz==f);
+   assert(pll_writes==before+!channel);if(!channel)assert(pll_mhz*1000u+pll_offset==f*((f>=1842 && f<2210)?1200u:1000u));
  }
  command("BANDWIDTH 20");assert(rx_filter==40);
  command("BANDWIDTH 0");assert(rx_filter==0);

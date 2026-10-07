@@ -12,7 +12,10 @@ class SharedCommands(unittest.TestCase):
         handler=source[source.index('static void handle_command(char *line) {'):]
         stub=r'''
 #include <assert.h>
+void rx_recalibrate(unsigned mhz) {}
 #include <stdbool.h>
+static bool burst_version_command(const char *s) { return false; }
+static bool burst_gpio_command(const char *s) { return false; }
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
@@ -47,6 +50,9 @@ static unsigned phy_chip_i2c_readReg(unsigned a,unsigned b,unsigned c) { return 
 #define REG_READ(a) 0u
 #if CONFIG_IDF_TARGET_ESP32C61
 static unsigned calibrated,pll,tunes;
+unsigned phy_i2c_readReg(unsigned b,unsigned h,unsigned r){assert(b==0x62 && h==1 && r==12);return 0;}
+void phy_i2c_writeReg(unsigned b,unsigned h,unsigned r,unsigned v){assert(0);}
+void esp_rom_delay_us(unsigned us){(void)us;}
 void phy_chip_set_chan(unsigned f,unsigned mode) { assert(mode==0);calibrated=f;pll=f;tunes++; }
 void phy_set_freq(unsigned f,int offset) { assert(offset==0);pll=f; }
 #include "tuning.h"

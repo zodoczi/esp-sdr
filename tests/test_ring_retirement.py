@@ -31,6 +31,7 @@ static struct {
  unsigned frame_units,frame_ffts,frame_pairs,frame_flags,frame_gain;uint64_t frame_index;
  unsigned phase,blk_bank,blk_at,pos,fft_stage;bool emitting;
 }st;
+static unsigned txq_head,txq_tail;
 static unsigned spec_n=2048,spec_log2=11,closed,commits;
 static int16_t fft_buf[4096];
 static void frame_close(void){assert(st.phase==BLK_IDLE);closed++;st.frame_units=st.frame_ffts=0;}

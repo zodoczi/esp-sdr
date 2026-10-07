@@ -16,9 +16,13 @@
 #include "soc/soc.h"
 
 #include "burst_serial.h"
+#include "burst_gpio.h"
+#include "burst_version.h"
 #include "spectrum.h"
-#include "ring_capture.h"
+#include "rx_recalibration.h"
 #include "rx_tuning.h"
+#include "rx_lo.h"
+#include "esp_rom_sys.h"
 
 /* Pinned C3 librftest adctrig: 64 KiB at 0x3fcb0000, usage=2,
  * allocation bit 3. Reserve the FULL 128 KiB bank and its IRAM alias:
@@ -56,12 +60,16 @@ static bool frequency_valid(unsigned mhz) {
     return mhz>=C3_FREQ_MIN && mhz<=C3_FREQ_MAX;
 }
 static void tune_rx(unsigned mhz) {
-    bool channel=(mhz>=2412 && mhz<=2472 && (mhz-2412)%5==0) || mhz==2484;
-    /* Calibrate using a real Wi-Fi channel, then program exact PLL MHz.
-     * The channel API otherwise rounds off-grid frequencies. This is an
-     * attempt range; PLL lock and reception are not guaranteed throughout. */
+    static unsigned calibrated_mhz;
+    if (calibrated_mhz != mhz) {
+        rx_recalibrate(mhz);
+        calibrated_mhz = mhz;
+    }
+    rx_lo_plan_t plan=rx_lo_plan(mhz);
+    bool channel=(mhz>=2412 && mhz<=2472 && (mhz-2412)%5==0)||mhz==2484;
+    rx_lo_select(false);
     set_chanfreq(channel?mhz:2412,0);
-    if(!channel)phy_set_freq(mhz,0);
+    if(!channel)phy_set_freq(plan.mhz,plan.offset_khz);
 }
 #define send_bytes burst_serial_send
 static void reply(const char *s) { (void)send_bytes(s,strlen(s)); }
@@ -77,6 +85,8 @@ static void prepare_rx(void) {
     rom_pbus_xpd_rx_on(1);
     rom_set_rxclk_en(1);
     gain_apply();
+    rx_lo_select(rx_lo_plan(frequency_mhz).alternate);
+    esp_rom_delay_us(3000);
     rx_ready=true;
 }
 
@@ -159,34 +169,9 @@ static bool capture(unsigned n,unsigned divider,unsigned format) {
     return send_bytes(h,strlen(h)) && send_bytes(IQ_BUFFER,bytes);
 }
 
-static bool ring_test(const char *line) {
-    unsigned ms,rate,stride=1,upf=1,det=0,n=256,stats=0; char extra;
-    int fields=sscanf(line,"SPEC %u %u %u %u %u %u %u %c",&ms,&stride,&upf,&det,&rate,&n,&stats,&extra);
-    bool spec=fields==6 || fields==7;
-    if(spec && (n!=256 || burst_serial_port()==BURST_SERIAL_UART))return false;
-#ifdef RING_PROBE
-    if(!spec)spec=sscanf(line,"RINGSPEC %u %u %u %u %u %u %c",&ms,&stride,&upf,&det,&rate,&n,&extra)==6;
-    if(!spec && sscanf(line,"RINGTEST %u %u %c",&ms,&rate,&extra)!=2)return false;
-#else
-    if(!spec)return false;
-#endif
-    if(ms>86400000u || rate>5 || !stride || !upf || det>1 || stats>1 || stride>64 || upf>1000 || n!=256
-#if CONFIG_IDF_TARGET_ESP32C3
-        || rate!=0
-#endif
-    ){reply("ERR spec_args\n");return true;}
-    if(spec){ring_capture_init();char h[80];snprintf(h,sizeof(h),"SPEC %u %u %u %u\n",n,ring_capture_rate_hz(rate),RING_THRESHOLD,frequency_mhz);reply(h);}
-    prepare_rx();
-    rx_filter_apply();
-    ring_config_t cfg={.mode=spec?RING_MODE_SPEC:RING_MODE_STATS,.rate=rate,.duration_ms=ms,.nfft=n,.stride=stride,.units_per_frame=upf,.max_hold=det==1,.stats=stats!=0};
-    ring_result_t r;ring_capture_run(&cfg,&r);rx_filter_restore();
-    char h[200];snprintf(h,sizeof(h),"%s %u %u %u %llu %llu %u %u %u %u %u %u %u\n",spec?"SPECEND":"RINGTEST",(unsigned)r.status,(unsigned)r.detail,
-        (unsigned)r.units,(unsigned long long)r.pairs,(unsigned long long)r.elapsed_us,(unsigned)r.late_max,(unsigned)r.work_max,(unsigned)r.frames,(unsigned)r.drops,(unsigned)r.abandoned,(unsigned)r.ffts,r.stopped_by_host);
-    reply(h);return true;
-}
-
 static void handle_command(char *line) {
-    if(ring_test(line))return;
+    if (burst_version_command(line)) return;
+    if (burst_gpio_command(line)) return;
 #ifdef RING_PROBE
     if(ring_probe_command(line)) return;
 #endif
@@ -214,7 +199,7 @@ static void handle_command(char *line) {
         if(ok)reply("END\n");
     }
     else if(!strcmp(line,"CAPS")) {
-        reply("CAPS SPEC SPECN SPECCAPS SPECSTAT DCT UARTBAUD RXLIMITS SERIALLEASE "
+        reply("CAPS VERSION GPIO SPEC SPECN SPECCAPS SPECSTAT DCT UARTBAUD RXLIMITS SERIALLEASE "
 #if CONFIG_ESP_SDR_UART_ENABLED
               "DUALSERIAL "
 #endif

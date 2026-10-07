@@ -1,5 +1,6 @@
 #pragma once
 #include "rx_tuning.h"
+#include "rx_lo.h"
 #define SRAM_OWNER_REG 0x60095004u
 #define IQ_WORDS 16380u
 /* C6 stock librftest adctrig uses SRAM bank 2 and source 15. */
@@ -12,8 +13,10 @@ static void c6_set_chan(unsigned mhz,unsigned mode) {
  /* Calibrate on a real Wi-Fi channel, then program the PLL directly. The
   * channel API converts MHz through mhz2ieee and loses off-grid requests. */
  bool channel=(mhz>=2412 && mhz<=2472 && (mhz-2412)%5==0)||mhz==2484;
+ rx_lo_plan_t plan=rx_lo_plan(mhz);
+ rx_lo_select(false);
  chip_v7_set_chan(channel?mhz:2412,mode);
- if(!channel)phy_set_freq(mhz,0);
+ if(!channel)phy_set_freq(plan.mhz,plan.offset_khz);
 }
 #define phy_chip_set_chan c6_set_chan
 #define phy_stop_tx_tone ram_stop_tx_tone

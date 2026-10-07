@@ -1,0 +1,13 @@
+before {"product": "ESP-SDR RX", "protocol": 2, "transport": "idle", "epoch": 5, "frequency": 2442000000, "rate": 20000000, "dc_correction": 1, "dc_before_i": 0, "dc_before_q": 0, "dc_after_i": 0, "dc_after_q": 0, "dc_steps": 0, "dc_j00": 0, "dc_j01": 0, "dc_j10": 0, "dc_j11": 0, "gain": 50, "gain_max": 71, "bandwidth": 0, "effective_bandwidth": 20000000, "capture_drops": 0, "capture_overruns": 0, "ring_drops": 0, "transport_drops": 0, "time_us": 63601495, "usb_connected": true, "ip": "192.168.0.149", "ethernet_mbps": 1000, "dma_free": 17812}
+pause 0 0.02514248000079533
+pause 1 0.025123295999947004
+pause 2 0.02514239299489418
+pause 3 0.02513640600227518
+pause 4 0.025135951000265777
+pause 5 0.025132987000688445
+pause 6 0.025133830997219775
+pause 7 0.025142758000583854
+pause 8 0.02515791000041645
+pause 9 0.025113126997894142
+exit 0
+after {"product": "ESP-SDR RX", "protocol": 2, "transport": "idle", "epoch": 8, "frequency": 2442000000, "rate": 20000000, "dc_correction": 1, "dc_before_i": 0, "dc_before_q": 0, "dc_after_i": 0, "dc_after_q": 0, "dc_steps": 0, "dc_j00": 0, "dc_j01": 0, "dc_j10": 0, "dc_j11": 0, "gain": 50, "gain_max": 71, "bandwidth": 0, "effective_bandwidth": 20000000, "capture_drops": 0, "capture_overruns": 0, "ring_drops": 0, "transport_drops": 0, "time_us": 93761176, "usb_connected": true, "ip": "192.168.0.149", "ethernet_mbps": 1000, "dma_free": 17808}

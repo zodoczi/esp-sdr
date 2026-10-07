@@ -1,5 +1,6 @@
 /* The burst protocol is shared by native USB Serial/JTAG and UART0. */
 #include "burst_serial.h"
+#include "burst_gpio.h"
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
@@ -94,6 +95,7 @@ void burst_serial_init(void) {
     ESP_ERROR_CHECK(uart_driver_install(UART_NUM_0, 8192, 0, 0, NULL, 0));
     ESP_ERROR_CHECK(uart_flush_input(UART_NUM_0));
 #endif
+    burst_gpio_init();
 }
 
 burst_serial_port_t burst_serial_port(void) { return active_port; }
@@ -171,6 +173,28 @@ static int64_t transfer_deadline(size_t size) {
         ? 2000000 + (int64_t)size * 10000000 / uart_baud
         : 3000000;
     return esp_timer_get_time() + timeout;
+}
+
+size_t burst_serial_try_send(const void *data, size_t size) {
+    const uint8_t *p=data;size_t done=0;
+    while(done<size){
+        int sent=0;
+        if(active_port==BURST_SERIAL_UART){
+            sent=uart_tx_chars(UART_NUM_0,(const char *)p+done,size-done>128?128:size-done);
+        }else{
+#if SOC_USB_SERIAL_JTAG_SUPPORTED
+            if(!usb_serial_jtag_ll_txfifo_writable())break;
+            sent=usb_serial_jtag_ll_write_txfifo(p+done,size-done>64?64:size-done);
+            usb_serial_jtag_ll_txfifo_flush();
+#elif CONFIG_IDF_TARGET_ESP32S2
+            sent=esp_usb_console_write_buf((const char *)p+done,size-done>64?64:size-done);
+            if(sent>0)esp_usb_console_flush();
+#endif
+        }
+        if(sent<=0)break;
+        done+=(unsigned)sent;
+    }
+    return done;
 }
 
 bool IRAM_ATTR burst_serial_send(const void *data, size_t size) {

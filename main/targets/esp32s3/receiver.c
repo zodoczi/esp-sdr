@@ -19,7 +19,12 @@
 #include "soc/soc.h"
 
 #include "burst_serial.h"
+#include "burst_gpio.h"
+#include "burst_version.h"
+#include "rx_recalibration.h"
 #include "rx_tuning.h"
+#include "rx_lo.h"
+#include "esp_rom_sys.h"
 #include "ring_capture.h"
 
 /* Vendor S3 adctrig uses the 64 KiB aperture at 0x3fcd0000 (MAC_DUMP_USAGE=4).
@@ -45,14 +50,19 @@ extern void set_rf_freq_offset(unsigned,unsigned,int);
 static void s3_tune(unsigned mhz);
 static int s3_fofs; /* FOFS: PLL offset in kHz, applied from the next tune */
 static void s3_tune(unsigned mhz) {
-    /* a kHz offset (FOFS) needs the direct PLL path, also on Wi-Fi channel MHz */
+    static unsigned calibrated_mhz;
+    if (calibrated_mhz != mhz) {
+        rx_recalibrate(mhz);
+        calibrated_mhz = mhz;
+    }
+    rx_lo_plan_t plan=rx_lo_plan(mhz);
+    /* A PLL offset also requires direct tuning on Wi-Fi channel frequencies. */
     bool channel=!s3_fofs && ((mhz>=2412 && mhz<=2472 && (mhz-2412)%5==0)||mhz==2484);
+    rx_lo_select(false);
     set_chanfreq(channel?mhz:2412,0);
-    if(!channel)set_rf_freq_offset(0,mhz,s3_fofs); /* 40 MHz crystal; direct PLL MHz. */
+    if(!channel)set_rf_freq_offset(0,plan.mhz,plan.offset_khz+s3_fofs);
 }
 
-/* Measured PLL lock range of the S3 (VSG60 CW sweep 0.15-6 GHz, 2026-10-01:
- * LO locks 2196-2806 MHz, hard edges, no reception outside). */
 #define S3_FREQ_MIN RX_FREQ_MIN
 #define S3_FREQ_MAX RX_FREQ_MAX
 static unsigned frequency_mhz=2412;
@@ -98,7 +108,16 @@ static void prepare_rx(void) {
     phy_pbus_xpd_rx_on(1);
     phy_set_rxclk_en(1);
     gain_apply();
+    rx_lo_select(rx_lo_plan(frequency_mhz).alternate);
+    esp_rom_delay_us(3000);
     rx_ready=true;
+}
+/* A forced index update alone can leave continuous capture using stale RX
+ * state until the next tune. Apply gain changes through the same receiver
+ * setup as FREQ, before acknowledging the command. */
+static void gain_reconfigure(void) {
+    rx_ready=false;
+    prepare_rx();
 }
 #include "filter_probe.h"
 
@@ -297,6 +316,8 @@ static bool ring_command(const char *line) {
 }
 
 static void handle_command(char *line) {
+    if (burst_version_command(line)) return;
+    if (burst_gpio_command(line)) return;
     if(!strcmp(line,"TRANSPORT?")) {
         char answer[64];
         snprintf(answer,sizeof(answer),"TRANSPORT %s %u\n",
@@ -331,7 +352,7 @@ static void handle_command(char *line) {
         else if(!strcmp(line,"ADCCLOCK?")){char h[64];snprintf(h,sizeof(h),"ADC %u\n",rom_chip_i2c_readReg(0x66,0,4));reply(h);}
 #endif
         else if(!strcmp(line,"CAPS")) {
-            reply("CAPS UARTBAUD RXLIMITS SERIALLEASE "
+            reply("CAPS VERSION GPIO UARTBAUD RXLIMITS SERIALLEASE "
 #if CONFIG_ESP_SDR_UART_ENABLED
                   "DUALSERIAL "
 #endif

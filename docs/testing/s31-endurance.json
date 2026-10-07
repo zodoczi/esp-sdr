@@ -1,0 +1,42 @@
+{
+  "firmware_version": "streaming-20261002",
+  "application_sha256": "55af9a10e50b2d383267ad1ee3c0fbbf20fb6c4a851d69f138986efc26e1b191",
+  "idf_commit": "c712a0dde385d659a1470a136251980d31a70bc1",
+  "iq_format": "signed 8-bit I + signed 8-bit Q",
+  "endurance": [
+    {
+      "transport": "ethernet",
+      "rate": 40000000,
+      "elapsed_seconds": 600.0,
+      "samples": 23999658144,
+      "missing_samples": 0,
+      "queue_drops": 0,
+      "invalid_packets": 0,
+      "overflows": 0,
+      "timeouts": 0,
+      "firmware_drop_delta": {
+        "capture_drops": 0,
+        "capture_overruns": 0,
+        "ring_drops": 0,
+        "transport_drops": 0
+      }
+    },
+    {
+      "transport": "usb",
+      "rate": 20000000,
+      "elapsed_seconds": 600.0,
+      "samples": 11999834784,
+      "missing_samples": 0,
+      "queue_drops": 0,
+      "invalid_packets": 0,
+      "overflows": 0,
+      "timeouts": 0,
+      "firmware_drop_delta": {
+        "capture_drops": 0,
+        "capture_overruns": 0,
+        "ring_drops": 0,
+        "transport_drops": 0
+      }
+    }
+  ]
+}

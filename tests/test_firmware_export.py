@@ -37,6 +37,17 @@ class FirmwareExport(unittest.TestCase):
         self.assertEqual(variant['parts'][0]['offset'], 65536)
         self.assertIn('0x10000 esp32s3/0-app.bin', (self.root / 'output/flash_args').read_text())
 
+    def test_streaming_profile_identifies_its_application(self):
+        (self.build / 'CMakeCache.txt').write_text('ESP_SDR_STREAMING:BOOL=ON\n')
+        (self.build / 'config/sdkconfig.json').write_text(json.dumps({'IDF_TARGET': 'esp32s31'}))
+        self.args['extra_esptool_args']['chip'] = 'esp32s31'
+        self.save_args()
+        path = exporter.export(self.build, self.root / 'output', 'esp32s31-stream',
+                               'S31 SoapyESPSDR', 'test', True)
+        variant = json.loads(path.read_text())['variants']['esp32s31-stream']
+        self.assertEqual(variant['application'], 'soapysdr')
+        self.assertEqual(variant['target'], 'esp32s31')
+
     def test_build_date_from_image_descriptor(self):
         data = bytearray(144)
         data[32:36] = bytes.fromhex('3254cdab')
@@ -45,6 +56,23 @@ class FirmwareExport(unittest.TestCase):
         manifest = json.loads(self.export().read_text())
         self.assertEqual(manifest['variants']['esp32s3']['build_date'], '2026-09-28')
         self.assertIsNone(exporter.firmware_build_date(b'not an app'))
+
+    def test_embedded_version_overrides_descriptor_date(self):
+        record = dict(revision='a'*40, build_date='2026-10-06',
+                      build_timestamp='2026-10-06T22:12:34Z', profile='esp32s3')
+        (self.build / 'app.bin').write_bytes(b'ESP-SDR-VERSION:'+json.dumps(record).encode()+b'\0')
+        variant = json.loads(self.export().read_text())['variants']['esp32s3']
+        self.assertEqual(variant['git_revision'], record['revision'])
+        self.assertEqual(variant['build_timestamp'], record['build_timestamp'])
+        self.assertEqual(variant['build_date'], record['build_date'])
+
+    def test_embedded_profile_mismatch_rejected(self):
+        record = dict(revision='a'*40, build_date='2026-10-06',
+                      build_timestamp='2026-10-06T22:12:34Z', profile='esp32c61')
+        (self.build / 'app.bin').write_bytes(b'ESP-SDR-VERSION:'+json.dumps(record).encode()+b'\0')
+        with self.assertRaisesRegex(ValueError, 'profile'):
+            self.export()
+        self.assertFalse((self.root / 'output').exists())
 
     def test_probe_firmware_rejected(self):
         for flag in ['RING_PROBE','SAMPLE_RATE_PROBE','FILTER_REGISTER_PROBE','S2_RF_PROBE','S3_RF_PROBE','C5_TUNE_PROBE']:
@@ -80,3 +108,13 @@ class FirmwareExport(unittest.TestCase):
         variant = json.loads(self.export().read_text())['variants']['esp32s3']
         self.assertEqual(variant['flash_size'], '16MB')
         self.assertIn('--no-stub', (self.root / 'output/flash_command.txt').read_text())
+
+    def test_c2_records_required_crystal(self):
+        (self.build / 'config/sdkconfig.json').write_text(json.dumps(
+            {'IDF_TARGET': 'esp32c2', 'XTAL_FREQ': 26}))
+        self.args['extra_esptool_args']['chip'] = 'esp32c2'
+        self.save_args()
+        path = exporter.export(self.build, self.root / 'output', 'esp32c2', 'C2', 'test', True)
+        variant = json.loads(path.read_text())['variants']['esp32c2']
+        self.assertEqual(variant['xtal_mhz'], 26)
+        self.assertEqual(variant['chip'], 'ESP32-C2')

@@ -1,0 +1,4 @@
+dependencies:
+  espressif/esp_tinyusb: "2.2.0"
+  espressif/cjson: "1.7.19~2"
+  espressif/tinyusb: "0.21.0~2"

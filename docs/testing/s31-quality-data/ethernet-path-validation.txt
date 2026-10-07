@@ -1,0 +1,149 @@
+
+s31-eth-repro.log
+[1m[31m[ERROR] SoapySDR::loadModule(<workspace>/SoapyESPSDR/build-rx/libESPSDRSupport.so)
+  duplicate entry for espsdr (/usr/local/lib/SoapySDR/modules0.8/libESPSDRSupport.so)[0m
+1.00007 s: 2970240 samples, 2.97004 MS/s, missing=7091616, overflows=568, timeouts=0
+2.00014 s: 8797152 samples, 4.39827 MS/s, missing=21264768, overflows=1706, timeouts=0
+3.00021 s: 14623392 samples, 4.87412 MS/s, missing=35430528, overflows=2842, timeouts=0
+4.00028 s: 20449632 samples, 5.11205 MS/s, missing=49615776, overflows=3982, timeouts=0
+5.00035 s: 26275872 samples, 5.25481 MS/s, missing=63783552, overflows=5121, timeouts=0
+6.00042 s: 32102112 samples, 5.34998 MS/s, missing=77958048, overflows=6260, timeouts=0
+7.00049 s: 37928352 samples, 5.41796 MS/s, missing=92137248, overflows=7398, timeouts=0
+8.00056 s: 43754592 samples, 5.46894 MS/s, missing=106311744, overflows=8536, timeouts=0
+9.00064 s: 49579488 samples, 5.50844 MS/s, missing=120488928, overflows=9673, timeouts=0
+10.0007 s: 55405056 samples, 5.54011 MS/s, missing=134669472, overflows=10813, timeouts=0
+11.0008 s: 61231968 samples, 5.56615 MS/s, missing=148839936, overflows=11952, timeouts=0
+12.0009 s: 67058208 samples, 5.58779 MS/s, missing=163017120, overflows=13089, timeouts=0
+13.0009 s: 72884448 samples, 5.60609 MS/s, missing=177190944, overflows=14226, timeouts=0
+14.001 s: 78710688 samples, 5.62179 MS/s, missing=191367456, overflows=15364, timeouts=0
+15.0011 s: 84536928 samples, 5.63539 MS/s, missing=205539264, overflows=16503, timeouts=0
+16.0011 s: 90362496 samples, 5.64725 MS/s, missing=219721824, overflows=17642, timeouts=0
+17.0012 s: 96189408 samples, 5.65779 MS/s, missing=233888256, overflows=18779, timeouts=0
+18.0013 s: 102015648 samples, 5.66713 MS/s, missing=248061408, overflows=19916, timeouts=0
+19.0014 s: 107840544 samples, 5.67541 MS/s, missing=262244640, overflows=21054, timeouts=0
+20.0014 s: 113666784 samples, 5.68293 MS/s, missing=276417120, overflows=22191, timeouts=0
+21.0015 s: 119493024 samples, 5.68974 MS/s, missing=290594304, overflows=23328, timeouts=0
+22.0016 s: 125319264 samples, 5.69592 MS/s, missing=304768800, overflows=24464, timeouts=0
+23.0017 s: 131145504 samples, 5.70157 MS/s, missing=318939264, overflows=25602, timeouts=0
+24.0017 s: 136971744 samples, 5.70674 MS/s, missing=333119808, overflows=26742, timeouts=0
+25.0018 s: 142797984 samples, 5.71151 MS/s, missing=347291616, overflows=27880, timeouts=0
+26.0019 s: 148624224 samples, 5.7159 MS/s, missing=361468128, overflows=29019, timeouts=0
+27.0019 s: 154450464 samples, 5.71998 MS/s, missing=375642624, overflows=30156, timeouts=0
+28.002 s: 160276704 samples, 5.72376 MS/s, missing=389817792, overflows=31294, timeouts=0
+29.0021 s: 166102944 samples, 5.72727 MS/s, missing=403999680, overflows=32434, timeouts=0
+Total: samples=171916416 missing=418147296 queue_drops=0 invalid=0 overflows=33569 timeouts=0 elapsed=30.0001
+
+
+s31-eth-4m.log
+[1m[31m[ERROR] SoapySDR::loadModule(<workspace>/SoapyESPSDR/build-rx/libESPSDRSupport.so)
+  duplicate entry for espsdr (/usr/local/lib/SoapySDR/modules0.8/libESPSDRSupport.so)[0m
+1.0002 s: 2188032 samples, 2.1876 MS/s, missing=0, overflows=0, timeouts=0
+2.00022 s: 6188448 samples, 3.09388 MS/s, missing=0, overflows=0, timeouts=0
+3.00026 s: 10188864 samples, 3.39599 MS/s, missing=0, overflows=0, timeouts=0
+4.00055 s: 14189280 samples, 3.54683 MS/s, missing=0, overflows=0, timeouts=0
+5.00064 s: 18190368 samples, 3.63761 MS/s, missing=0, overflows=0, timeouts=0
+6.00088 s: 22190784 samples, 3.69792 MS/s, missing=0, overflows=0, timeouts=0
+7.00099 s: 26191872 samples, 3.74117 MS/s, missing=0, overflows=0, timeouts=0
+8.00116 s: 30192288 samples, 3.77349 MS/s, missing=0, overflows=0, timeouts=0
+9.0012 s: 34192704 samples, 3.79868 MS/s, missing=0, overflows=0, timeouts=0
+10.0013 s: 38193120 samples, 3.81883 MS/s, missing=0, overflows=0, timeouts=0
+11.0015 s: 42193536 samples, 3.83524 MS/s, missing=0, overflows=0, timeouts=0
+12.0016 s: 46194624 samples, 3.84903 MS/s, missing=0, overflows=0, timeouts=0
+13.0018 s: 50195040 samples, 3.86061 MS/s, missing=0, overflows=0, timeouts=0
+14.0019 s: 54195456 samples, 3.87058 MS/s, missing=0, overflows=0, timeouts=0
+15.0019 s: 58195872 samples, 3.87923 MS/s, missing=0, overflows=0, timeouts=0
+16.0022 s: 62196288 samples, 3.88674 MS/s, missing=0, overflows=0, timeouts=0
+17.0023 s: 66197376 samples, 3.89344 MS/s, missing=0, overflows=0, timeouts=0
+18.0026 s: 70197792 samples, 3.89932 MS/s, missing=0, overflows=0, timeouts=0
+19.0027 s: 74198880 samples, 3.90466 MS/s, missing=0, overflows=0, timeouts=0
+Total: samples=78188544 missing=0 queue_drops=0 invalid=0 overflows=0 timeouts=0 elapsed=20.0001
+
+
+s31-eth-switch-20m.log
+1 s: 11434080 samples, 11.4341 MS/s, missing=0, overflows=0, timeouts=0
+2.00002 s: 31434144 samples, 15.7169 MS/s, missing=0, overflows=0, timeouts=0
+3.00005 s: 51434880 samples, 17.1447 MS/s, missing=0, overflows=0, timeouts=0
+4.00008 s: 71435616 samples, 17.8585 MS/s, missing=0, overflows=0, timeouts=0
+5.00012 s: 91436352 samples, 18.2868 MS/s, missing=0, overflows=0, timeouts=0
+6.00015 s: 111437088 samples, 18.5724 MS/s, missing=0, overflows=0, timeouts=0
+7.00019 s: 131437824 samples, 18.7763 MS/s, missing=0, overflows=0, timeouts=0
+8.00021 s: 151438560 samples, 18.9293 MS/s, missing=0, overflows=0, timeouts=0
+9.00023 s: 171439296 samples, 19.0483 MS/s, missing=0, overflows=0, timeouts=0
+10.0003 s: 191440032 samples, 19.1435 MS/s, missing=0, overflows=0, timeouts=0
+11.0003 s: 211440768 samples, 19.2214 MS/s, missing=0, overflows=0, timeouts=0
+12.0003 s: 231441504 samples, 19.2863 MS/s, missing=0, overflows=0, timeouts=0
+13.0004 s: 251442240 samples, 19.3412 MS/s, missing=0, overflows=0, timeouts=0
+14.0004 s: 271442976 samples, 19.3882 MS/s, missing=0, overflows=0, timeouts=0
+15.0004 s: 291443712 samples, 19.429 MS/s, missing=0, overflows=0, timeouts=0
+16.0005 s: 311444448 samples, 19.4647 MS/s, missing=0, overflows=0, timeouts=0
+17.0005 s: 331445184 samples, 19.4962 MS/s, missing=0, overflows=0, timeouts=0
+18.0005 s: 351445920 samples, 19.5242 MS/s, missing=0, overflows=0, timeouts=0
+19.0005 s: 371446656 samples, 19.5493 MS/s, missing=0, overflows=0, timeouts=0
+Total: samples=391437312 missing=0 queue_drops=0 invalid=0 overflows=0 timeouts=0 elapsed=20.0001
+
+
+s31-eth-switch-40m.log
+1 s: 23106048 samples, 23.106 MS/s, missing=0, overflows=0, timeouts=0
+2.00003 s: 63106848 samples, 31.553 MS/s, missing=0, overflows=0, timeouts=0
+3.00005 s: 103108320 samples, 34.3689 MS/s, missing=0, overflows=0, timeouts=0
+4.00013 s: 143109792 samples, 35.7762 MS/s, missing=0, overflows=0, timeouts=0
+5.00015 s: 183113952 samples, 36.6217 MS/s, missing=0, overflows=0, timeouts=0
+6.00019 s: 223114752 samples, 37.1846 MS/s, missing=0, overflows=0, timeouts=0
+7.00019 s: 263115552 samples, 37.5869 MS/s, missing=0, overflows=0, timeouts=0
+8.00026 s: 303115680 samples, 37.8882 MS/s, missing=0, overflows=0, timeouts=0
+9.00027 s: 343117824 samples, 38.1231 MS/s, missing=0, overflows=0, timeouts=0
+10.0003 s: 383119296 samples, 38.3109 MS/s, missing=0, overflows=0, timeouts=0
+11.0003 s: 423120096 samples, 38.4644 MS/s, missing=0, overflows=0, timeouts=0
+12.0004 s: 463121568 samples, 38.5923 MS/s, missing=0, overflows=0, timeouts=0
+13.0004 s: 503125728 samples, 38.7008 MS/s, missing=0, overflows=0, timeouts=0
+14.0004 s: 543125856 samples, 38.7936 MS/s, missing=0, overflows=0, timeouts=0
+15.0004 s: 583125984 samples, 38.874 MS/s, missing=0, overflows=0, timeouts=0
+16.0005 s: 623127456 samples, 38.9443 MS/s, missing=0, overflows=0, timeouts=0
+17.0005 s: 663131616 samples, 39.0066 MS/s, missing=0, overflows=0, timeouts=0
+18.0005 s: 703131744 samples, 39.0618 MS/s, missing=0, overflows=0, timeouts=0
+19.0005 s: 743131872 samples, 39.1111 MS/s, missing=0, overflows=0, timeouts=0
+Total: samples=783111840 missing=0 queue_drops=0 invalid=0 overflows=0 timeouts=0 elapsed=20
+
+
+s31-gqrx-switch-summary.log
+{"rate": 20000000, "web_requests": 20, "max_web_seconds": 0.009743347000039648, "gqrx_alive": true}
+{"rate": 40000000, "web_requests": 20, "max_web_seconds": 0.020024192999926527, "gqrx_alive": true}
+
+
+s31-gqrx-failure-summary.log
+start with damaged reply: RPRT 0
+Gqrx remains responsive: 1
+stop: RPRT 0
+retry: RPRT 0
+stop retry: RPRT 0
+PASS: Gqrx survived failed activation, receiver stopped, retry succeeded.
+
+
+s31-eth-asan-loopback.log
+.[1m[31m[ERROR] ESP-SDR activation failed: Invalid ESP-SDR control response: * Line 1, Column 2
+  Missing '}' or object member name
+[0m
+.[1m[31m[ERROR] ESP-SDR deactivation failed: Invalid ESP-SDR control response: * Line 1, Column 2
+  Missing '}' or object member name
+[0m
+....[1m[31m[ERROR] ESP-SDR receive: Invalid ESP-SDR RX v2 packet[0m
+..
+----------------------------------------------------------------------
+Ran 8 tests in 3.818s
+
+OK
+
+
+s31-eth-asan-ctest.log
+Internal ctest changing into directory: /tmp/soapy-eth-asan
+Test project /tmp/soapy-eth-asan
+    Start 1: module_load
+1/3 Test #1: module_load ......................   Passed    0.02 sec
+    Start 2: protocol
+2/3 Test #2: protocol .........................   Passed    0.07 sec
+    Start 3: dc_removal
+3/3 Test #3: dc_removal .......................   Passed    1.15 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Total Test time (real) =   1.23 sec

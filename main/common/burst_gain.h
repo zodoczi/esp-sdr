@@ -2,9 +2,18 @@
  * Hardware AGC controls gain unless a manual index is selected.
  * AGCPWR_CTRL7 bits 8..14 hold the maximum calibrated low-table index.
  * The pinned PHY implementations populate this field when tuning. */
+#if CONFIG_IDF_TARGET_ESP32H2
+extern void force_rx_gain(unsigned,unsigned);
+extern void bt_rx_force(unsigned);
+#else
 extern void force_rx_gain(unsigned,unsigned,unsigned);
+#endif
 #if CONFIG_IDF_TARGET_ESP32C5 || CONFIG_IDF_TARGET_ESP32C61 || CONFIG_IDF_TARGET_ESP32C6
 #define BURST_GAIN_REG 0x600a702cu
+#elif CONFIG_IDF_TARGET_ESP32H2
+#define BURST_GAIN_REG 0x600a2840u
+#elif CONFIG_IDF_TARGET_ESP32C2
+#define BURST_GAIN_REG 0x6004a02cu
 #else
 #define BURST_GAIN_REG 0x6001c02cu
 #endif
@@ -12,7 +21,13 @@ typedef enum { GAIN_MANUAL, GAIN_HARDWARE } burst_gain_mode_t;
 static burst_gain_mode_t gain_mode=GAIN_HARDWARE;
 static unsigned gain_code=40;
 static unsigned gain_max(void) {
+#if CONFIG_IDF_TARGET_ESP32H2
+    /* Pinned H2 set_rx_gain_table stores the last calibrated index here. */
+    extern uint8_t phy_param[];
+    unsigned maximum=phy_param[83];
+#else
     unsigned maximum=(REG_READ(BURST_GAIN_REG)>>8)&127u;
+#endif
     #if CONFIG_IDF_TARGET_ESP32C5
     return maximum<90u ? maximum : 0u;
 #elif CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32S2
@@ -41,8 +56,18 @@ static void gain_apply(void) {
     REG_WRITE(0x600a7094u,manual ? (gain_init_saved&~0x1fcu)|(gain_code<<2) : gain_init_saved);
     REG_WRITE(0x600a713cu,manual ? (gain_threshold_saved&~0x1fc0000u)|(gain_code<<18) : gain_threshold_saved);
 #endif
+#if CONFIG_IDF_TARGET_ESP32H2
+    force_rx_gain(manual,gain_code);
+    /* Keep the Bluetooth receiver running even when releasing forced gain. */
+    bt_rx_force(1);
+#else
     force_rx_gain(manual,gain_code,0);
+#endif
 }
+#if CONFIG_IDF_TARGET_ESP32S3
+/* The S3 backend restarts its continuous RX path when gain changes. */
+static void gain_reconfigure(void);
+#endif
 static bool gain_command(const char *line) {
     unsigned code;char extra;
     if(!strcmp(line,"GAIN?")) {
@@ -52,5 +77,10 @@ static bool gain_command(const char *line) {
     else if(sscanf(line,"GAIN MANUAL %u %c",&code,&extra)==1 && code<=gain_max()) {
         gain_mode=GAIN_MANUAL;gain_code=code;
     } else return false;
-    gain_apply();reply("OK\n");return true;
+#if CONFIG_IDF_TARGET_ESP32S3
+    gain_reconfigure();
+#else
+    gain_apply();
+#endif
+    reply("OK\n");return true;
 }

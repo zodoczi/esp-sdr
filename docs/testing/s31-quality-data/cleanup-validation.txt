@@ -1,0 +1,178 @@
+
+s31-cleanup-ctest.log
+Internal ctest changing into directory: <workspace>/SoapyESPSDR/build-rx
+Test project <workspace>/SoapyESPSDR/build-rx
+    Start 1: module_load
+1/3 Test #1: module_load ......................   Passed    0.00 sec
+    Start 2: protocol
+2/3 Test #2: protocol .........................   Passed    0.00 sec
+    Start 3: dc_removal
+3/3 Test #3: dc_removal .......................   Passed    0.25 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Total Test time (real) =   0.26 sec
+
+
+s31-cleanup-asan-ctest.log
+Internal ctest changing into directory: /tmp/soapy-rx-asan
+Test project /tmp/soapy-rx-asan
+    Start 1: module_load
+1/3 Test #1: module_load ......................   Passed    0.02 sec
+    Start 2: protocol
+2/3 Test #2: protocol .........................   Passed    0.05 sec
+    Start 3: dc_removal
+3/3 Test #3: dc_removal .......................   Passed    0.69 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Total Test time (real) =   0.76 sec
+
+
+s31-cleanup-loopback.log
+....[1m[31m[ERROR] ESP-SDR receive: Invalid ESP-SDR RX v2 packet[0m
+..
+----------------------------------------------------------------------
+Ran 6 tests in 2.110s
+
+OK
+
+
+s31-cleanup-asan-loopback.log
+....[1m[31m[ERROR] ESP-SDR receive: Invalid ESP-SDR RX v2 packet[0m
+..
+----------------------------------------------------------------------
+Ran 6 tests in 2.503s
+
+OK
+
+
+s31-cleanup-web-tests-detail.log
+✔ accepts supplied profiles without a hard-coded firmware target list (2.718823ms)
+✔ rejects empty or malformed catalogs (0.281426ms)
+✔ rejects unsafe filenames, mismatched chips, overlaps and invalid checksums (0.453318ms)
+✔ manifest loads on demand; HTTP failures do not fall back to bundled data (16.855813ms)
+✔ downloads selected images relative to the manifest and verifies them (1.695096ms)
+✔ downloads a new build without reusing a stale cached image URL (0.62792ms)
+✔ corrupt or missing images fail before they are handed to the writer (0.430646ms)
+✔ browser capability metadata matches the vendored loader (0.814513ms)
+✔ installer dates never fall back to internal release labels (0.445994ms)
+✔ remembered USB identities never silently select between identical boards (1.160696ms)
+✔ C3 identity negotiates buffer length without changing C5/S3 compatibility (1.328457ms)
+✔ older C3 firmware remains restricted to Wi-Fi channel centers (0.623914ms)
+✔ C3 negotiated odd-length IQ8 capture decodes signed samples and checks CRC (7.442479ms)
+✔ C3 negotiated odd-length IQ10 capture decodes signed samples and checks CRC (4.424237ms)
+✔ C3 negotiates and sends the measured analog bandwidth through the normal viewer driver (1.181979ms)
+✔ extended C3 tuning attempts exact MHz and warns without blocking capture (1.025088ms)
+✔ C6 identity negotiates buffer length without changing C5/S3 compatibility (0.68514ms)
+✔ C6 rejects 5 GHz and fractional tuning; C5 keeps its wider range (0.537953ms)
+✔ C6 negotiated odd-length IQ8 capture decodes signed samples and checks CRC (4.059832ms)
+✔ C6 negotiated odd-length IQ10 capture decodes signed samples and checks CRC (4.319035ms)
+✔ C6 negotiates measured analog bandwidth and sends MHz settings (1.005644ms)
+✔ extended C6 tuning sends exact MHz and warns without blocking capture (0.736883ms)
+✔ old C6 firmware requires an update and device-rejected tuning invalidates the cache (0.590835ms)
+✔ C61 identity negotiates buffer length without changing C5/S3 compatibility (0.620329ms)
+✔ C61 rejects 5 GHz and fractional tuning; C5 keeps its wider range (0.463966ms)
+✔ C61 negotiated odd-length IQ8 capture decodes signed samples and checks CRC (4.33809ms)
+✔ C61 negotiated odd-length IQ10 capture decodes signed samples and checks CRC (7.149787ms)
+✔ receive-only driver still decodes and validates captured IQ (7.069708ms)
+✔ corrupt capture is rejected (454.370102ms)
+✔ UART bridges exit reset and ROM download mode before synchronization (2.103786ms)
+✔ native USB and unidentified ports do not receive UART reset signals (0.999241ms)
+✔ connect resets a UART bridge before sending the synchronization marker (1.148916ms)
+✔ original ESP32 negotiates UART snapshot capabilities and channel tuning (7.839511ms)
+✔ original ESP32 exposes measured MHz control through capability negotiation (0.745393ms)
+✔ default gain command selects hardware AGC (0.561528ms)
+✔ manual gain still applies the selected index (0.501406ms)
+✔ software mode is rejected without sending a command (0.450194ms)
+✔ missing hardware AGC never falls back to software AGC (0.499971ms)
+✔ software gain responses are rejected (0.490213ms)
+✔ legacy S31 negotiates its capture size, rates and native precision (0.552194ms)
+✔ malformed receiver capabilities cannot enable arbitrary control ranges (0.561039ms)
+✔ MHz requests are validated before sending commands and cached after acknowledgement (0.570608ms)
+✔ uncharacterized filters remain automatic instead of receiving an invented MHz code (0.517911ms)
+✔ gain ranges come from the device, including their lower bound and step (0.557778ms)
+✔ S31 ADC dump firmware overrides legacy limits with 80 MS/s and IQ10 (5.551736ms)
+✔ S2 identity negotiates buffer length without changing C5/S3 compatibility (0.803937ms)
+✔ S2 accepts only its advertised direct tuning range (0.757774ms)
+✔ S2 negotiated odd-length IQ8 capture decodes signed samples and checks CRC (4.861635ms)
+✔ S2 negotiated odd-length IQ10 capture decodes signed samples and checks CRC (4.023076ms)
+✔ S2 tuning warning clears throughout the normal range after an excursion (0.775064ms)
+✔ ESP32: negotiate and transmit every whole MHz from 100 through 6000 (32.035386ms)
+✔ C3: negotiate and transmit every whole MHz from 100 through 6000 (44.476137ms)
+✔ C5: negotiate and transmit every whole MHz from 100 through 6000 (34.875132ms)
+✔ C6: negotiate and transmit every whole MHz from 100 through 6000 (48.227343ms)
+✔ C61: negotiate and transmit every whole MHz from 100 through 6000 (36.052754ms)
+✔ S2: negotiate and transmit every whole MHz from 100 through 6000 (55.528698ms)
+✔ S3: negotiate and transmit every whole MHz from 100 through 6000 (36.720857ms)
+✔ S31: negotiate and transmit every whole MHz from 100 through 6000 (31.958057ms)
+✔ reconnect respects older advertised limits and clears stale capabilities (0.940056ms)
+✔ malformed advertised ranges fail negotiation and clear tuning state (1.998553ms)
+✔ actual UI profile and spectrum click handlers retain 2612 MHz on every chip (6.297196ms)
+✔ spectrum corruption triggers the baud warning without a valid frame, across stream restarts (1.471736ms)
+✔ healthy spectra and host backlog drops do not trigger a CRC warning (0.707893ms)
+✔ raw capture warning and USB / 1 MBaud guidance remain available (0.528652ms)
+✔ ESP32: spectrum toggles and rate changes preserve receiver settings (11.555206ms)
+✔ C3: spectrum toggles and rate changes preserve receiver settings (1.033037ms)
+✔ C5: spectrum toggles and rate changes preserve receiver settings (1.350171ms)
+✔ C6: spectrum toggles and rate changes preserve receiver settings (0.763264ms)
+✔ C61: spectrum toggles and rate changes preserve receiver settings (1.273194ms)
+✔ S2: spectrum toggles and rate changes preserve receiver settings (1.090473ms)
+✔ S3: spectrum toggles and rate changes preserve receiver settings (1.014273ms)
+✔ S31: spectrum toggles and rate changes preserve receiver settings (1.376704ms)
+✔ spectrum decoder accepts all FFT sizes under arbitrary serial fragmentation (69.558154ms)
+✔ spectrum decoder resynchronizes after garbage, a corrupted frame, and a truncated tail (1.112853ms)
+✔ spectrum profiles gate both the transport and the actual chip rates (0.566573ms)
+✔ mixed capabilities label continuous and snapshot profiles separately (0.524608ms)
+✔ a missing stream boundary marks the connection failed before ordinary reuse (0.636337ms)
+✔ statistics coexist with fragmented spectra and recover from corrupt telemetry (4.333915ms)
+✔ a rejected retune invalidates the cache and the command queue accepts a correction (0.789011ms)
+✔ validation: streaming has a recoverable pause or clean disconnect (2.33398ms)
+✔ device rejection: streaming has a recoverable pause or clean disconnect (1.475893ms)
+✔ disconnect: streaming has a recoverable pause or clean disconnect (1.242471ms)
+✔ S31 streaming installation directs users to Soapy and device web controls (0.112324ms)
+✔ S31 burst installation still directs users to the serial viewer (0.08881ms)
+✔ streaming recovery UART uses its validated flashing speed (0.056772ms)
+ℹ tests 85
+ℹ suites 0
+ℹ pass 85
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1044.374096
+
+
+s31-cleanup-controls-usb.log
+{"rate": 4000000.0, "format": "CS8", "cycle": 0, "samples": 987840}
+{"rate": 4000000.0, "format": "CS16", "cycle": 0, "samples": 967680}
+{"rate": 4000000.0, "format": "CF32", "cycle": 0, "samples": 969024}
+{"rate": 8000000.0, "format": "CS8", "cycle": 0, "samples": 1993152}
+{"rate": 8000000.0, "format": "CS16", "cycle": 0, "samples": 1992480}
+{"rate": 8000000.0, "format": "CF32", "cycle": 0, "samples": 1991808}
+{"rate": 16000000.0, "format": "CS8", "cycle": 0, "samples": 3977568}
+{"rate": 16000000.0, "format": "CS16", "cycle": 0, "samples": 4001088}
+{"rate": 16000000.0, "format": "CF32", "cycle": 0, "samples": 3989664}
+{"rate": 20000000.0, "format": "CS8", "cycle": 0, "samples": 5001696}
+{"rate": 20000000.0, "format": "CS16", "cycle": 0, "samples": 5002368}
+{"rate": 20000000.0, "format": "CF32", "cycle": 0, "samples": 5000352}
+{"device": "driver=espsdr,usb=1", "passed": 12}
+
+
+s31-cleanup-controls-ethernet.log
+{"rate": 4000000.0, "format": "CS8", "cycle": 0, "samples": 1167264}
+{"rate": 4000000.0, "format": "CS16", "cycle": 0, "samples": 1167264}
+{"rate": 4000000.0, "format": "CF32", "cycle": 0, "samples": 1167264}
+{"rate": 8000000.0, "format": "CS8", "cycle": 0, "samples": 2336544}
+{"rate": 8000000.0, "format": "CS16", "cycle": 0, "samples": 2337216}
+{"rate": 8000000.0, "format": "CF32", "cycle": 0, "samples": 2336544}
+{"rate": 16000000.0, "format": "CS8", "cycle": 0, "samples": 4689216}
+{"rate": 16000000.0, "format": "CS16", "cycle": 0, "samples": 4689888}
+{"rate": 16000000.0, "format": "CF32", "cycle": 0, "samples": 4706016}
+{"rate": 20000000.0, "format": "CS8", "cycle": 0, "samples": 5882016}
+{"rate": 20000000.0, "format": "CS16", "cycle": 0, "samples": 5879328}
+{"rate": 20000000.0, "format": "CF32", "cycle": 0, "samples": 5861184}
+{"rate": 40000000.0, "format": "CS8", "cycle": 0, "samples": 12056352}
+{"rate": 40000000.0, "format": "CS16", "cycle": 0, "samples": 11975712}
+{"rate": 40000000.0, "format": "CF32", "cycle": 0, "samples": 11977728}
+{"device": "driver=espsdr,host=192.168.0.149", "passed": 15}

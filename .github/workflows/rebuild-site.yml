@@ -1,0 +1,23 @@
+name: Rebuild ESPARGOS website
+
+on:
+  workflow_run:
+    workflows: [Build firmware]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  rebuild:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    runs-on: ubuntu-24.04
+    steps:
+      # Wait for the build workflow to finish so the site can find its successful run.
+      - name: Trigger espargos.github.io github-pages workflow
+        env:
+          GH_TOKEN: ${{ secrets.ESPARGOS_GITHUB_IO_TOKEN }}
+        run: |
+          gh api --method POST \
+            repos/ESPARGOS/espargos.github.io/actions/workflows/github-pages.yml/dispatches \
+            -f ref=main

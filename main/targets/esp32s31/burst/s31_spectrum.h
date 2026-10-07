@@ -165,7 +165,7 @@ static void s31_worker(void *arg){
             unsigned sequence=job.seq;atomic_compare_exchange_strong(&s31.bank_seq[job.bank],&sequence,0);
             if(units && index+pairs!=job.index)gaps=true;
             pairs=(unsigned)(job.index+job.count-index);units++;
-            if(units>=cfg.upf && (ffts||units>=4*cfg.upf)){
+            if(ffts && (LOAD(s31.txhead)==LOAD(s31.txtail) || ffts>=60000)){
                 s31_emit(ffts,pairs,index,gain,gaps);ffts=units=pairs=0;gaps=false;
             }
             atomic_fetch_add_explicit(&s31.busy1,esp_cpu_get_cycle_count()-t0,memory_order_relaxed);
@@ -294,6 +294,7 @@ static bool s31_spectrum_command(const char *line){
     s31_config_t cfg={0};unsigned det,stats=0;char extra;
     int fields=sscanf(line,"SPEC %u %u %u %u %u %u %u %c",&cfg.ms,&cfg.stride,&cfg.upf,&det,&cfg.rate,&cfg.n,&stats,&extra);
     if((fields!=6&&fields!=7)||stats>1||det>1||cfg.ms>86400000u||!cfg.stride||cfg.stride>64||!cfg.upf||cfg.upf>1000||cfg.rate>5||cfg.n<256||cfg.n>S31_NMAX||(cfg.n&(cfg.n-1))){reply("ERR spec_args\n");return true;}
+    cfg.stride=1; /* Process until the bank deadline, not a host-selected stride. */
     if(!s31_spectrum_init()){reply("ERR spectrum_memory\n");return true;}
     s31_work=spectrum_workspace();
     cfg.maximum=det;cfg.stats=stats;while((1u<<cfg.logn)<cfg.n)cfg.logn++;

@@ -1,0 +1,11 @@
+S31 native USB reset: LIBUSB_SUCCESS / LIBUSB_TRANSFER_COMPLETED
+Reset/recovery 0 passed
+S31 native USB reset: LIBUSB_SUCCESS / LIBUSB_TRANSFER_COMPLETED
+Reset/recovery 1 passed
+S31 native USB reset: LIBUSB_SUCCESS / LIBUSB_TRANSFER_COMPLETED
+Reset/recovery 2 passed
+S31 native USB reset: LIBUSB_SUCCESS / LIBUSB_TRANSFER_COMPLETED
+Reset/recovery 3 passed
+S31 native USB reset: LIBUSB_SUCCESS / LIBUSB_TRANSFER_COMPLETED
+Reset/recovery 4 passed
+USB reset during command execution: all five recoveries passed

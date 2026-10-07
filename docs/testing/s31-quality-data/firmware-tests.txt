@@ -1,0 +1,6 @@
+....Analog calibration: cross-coupled/inverted plants, bounds, and failure rollback passed
+.........................
+----------------------------------------------------------------------
+Ran 29 tests in 1.500s
+
+OK

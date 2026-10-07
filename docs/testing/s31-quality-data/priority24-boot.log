@@ -1,0 +1,159 @@
+p32s31: SPI Speed   �ESP-ROM:esp32s31-20251218
+Build:Dec 18 2025
+rst:0x1 (POWERON),boot:0x7f (SPI_FAST_FLASH_BOOT)
+SPI mode:DIO, clock div:1
+load:0x2f0740c0,len:0x156c
+load:0x2f06a2b0,len:0xc58
+load:0x2f06cfb0,len:0x3048
+entry 0x2f06a2ba
+I (25) boot: ESP-IDF v6.0-dev-10868-gc712a0dde3 2nd stage bootloader
+I (26) boot: compile time Oct  2 2026 00:26:07
+I (28) boot: chip revision: v0.0
+I (28) boot.esp32s31: SPI Speed      : 80MHz
+I (31) boot.esp32s31: SPI Mode       : DIO
+I (35) boot.esp32s31: SPI Flash Size : 16MB
+I (39) boot: Partition Table:
+I (42) boot: ## Label            Usage          Type ST Offset   Length
+I (48) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+I (55) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+I (61) boot:  2 factory          factory app      00 00 00010000 00300000
+I (69) esp_image: segment 0: paddr=00010020 vaddr=500d0020 size=2dbe8h (187368) map
+I (108) esp_image: segment 1: paddr=0003dc10 vaddr=2f000000 size=02408h (  9224) load
+I (111) esp_image: segment 2: paddr=00040020 vaddr=50000020 size=c1060h (790624) map
+I (243) esp_image: segment 3: paddr=00101088 vaddr=2f002408 size=111e0h ( 70112) load
+I (258) esp_image: segment 4: paddr=00112270 vaddr=2f013600 size=05f84h ( 24452) load
+I (269) boot: Loaded app from partition at offset 0x10000
+I (276) oct_psram: vendor id    : 0x1a (UNKNOWN)
+I (276) oct_psram: Latency      : 0x01 (Fixed)
+I (276) oct_psram: DriveStr.    : 0x00 (25 Ohm)
+I (277) oct_psram: dev id       : 0x00 (generation 1)
+I (282) oct_psram: density      : 0x05 (128 Mbit)
+I (287) oct_psram: good-die     : 0x06 (Pass)
+I (291) oct_psram: SRF          : 0x02 (Slow Refresh)
+I (295) oct_psram: BurstType    : 0x00 ( Wrap)
+I (300) oct_psram: BurstLen     : 0x03 (2048 Byte)
+I (304) oct_psram: BitMode      : 0x00 (X8 Mode)
+I (308) oct_psram: Readlatency  : 0x06 (18 cycles@Fixed)
+I (313) oct_psram: DriveStrength: 0x00 (1/1)
+I (317) MSPI Timing: Enter psram timing tuning
+I esp_psram: Found 16MB PSRAM device
+I esp_psram: Speed: 250MHz
+I (485) mmu_psram: .rodata xip on psram
+I (550) mmu_psram: .text xip on psram
+I (551) cpu_start: Multicore app
+I (814) esp_psram: SPI SRAM memory test OK
+I (823) cpu_start: GPIO 59 and 58 are used as console UART I/O pins
+I (828) cpu_start: Pro cpu start user code
+I (828) cpu_start: cpu freq: 320000000 Hz
+I (828) app_init: Application information:
+I (829) app_init: Project name:     esp_sdr
+I (833) app_init: App version:      ab716db-dirty
+I (837) app_init: Compile time:     Oct  2 2026 04:38:48
+I (842) app_init: ELF file SHA256:  ce98bed0b...
+I (846) app_init: ESP-IDF:          v6.0-dev-10868-gc712a0dde3
+I (852) efuse_init: Min chip rev:     v0.0
+I (856) efuse_init: Max chip rev:     v0.99 
+I (860) efuse_init: Chip rev:         v0.0
+I (864) heap_init: Initializing. RAM available for dynamic allocation:
+I (870) heap_init: At 2F020E10 len 0003F1F0 (252 KiB): RAM
+I (875) heap_init: At 2E000000 len 00007FE8 (31 KiB): RTCRAM
+I (881) esp_psram: Adding pool of 15360K of PSRAM memory to heap allocator
+I (887) esp_psram: Adding pool of 59K of PSRAM memory gap generated due to end address alignment of irom to the heap allocator
+I (898) esp_psram: Adding pool of 8K of PSRAM memory gap generated due to end address alignment of drom to the heap allocator
+I (909) spi_flash: detected chip: generic
+I (913) spi_flash: flash io: dio
+I (916) sleep_gpio: Configure to isolate all GPIO pins in sleep state
+I (922) sleep_gpio: Enable automatic switching of GPIO sleep configuration
+I (929) main_task: Started on CPU0
+I (932) main_task: Calling app_main()
+I (940) pp: pp rom version: 395df10
+I (940) net80211: net80211 rom version: 395df10
+I (944) wifi:wifi driver task: 2f03d59c, prio:23, stack:6656, core=0
+I (950) wifi:wifi firmware version: 5c2a13a
+I (953) wifi:wifi certification version: v7.0
+I (957) wifi:config NVS flash: enabled
+I (960) wifi:config nano formatting: disabled
+I (964) wifi:mac_version:HAL_MAC_ESP32AX_764,ut_version:N, band mode:0x1
+I (971) wifi:Init data frame dynamic rx buffer num: 2
+I (976) wifi:Init static rx mgmt buffer num: 5
+I (980) wifi:Init management short buffer num: 32
+I (984) wifi:Init dynamic tx buffer num: 4
+I (988) wifi:Init static tx FG buffer num: 2
+I (992) wifi:Init static rx buffer size: 1700 (rxctrl:64, csi:512)
+I (998) wifi:Init static rx buffer num: 2
+I (1002) wifi:Init dynamic rx buffer num: 2
+I (1006) wifi_init: accept mbox: 6
+I (1009) wifi_init: tcpip mbox: 32
+I (1012) wifi_init: udp mbox: 6
+I (1015) wifi_init: tcp mbox: 6
+I (1017) wifi_init: tcp tx win: 5760
+I (1021) wifi_init: tcp rx win: 5760
+I (1024) wifi_init: tcp mss: 1440
+I (1027) phy_init: phy_version 101,7b1f880,Sep  2 2026,19:36:23
+W (1089) wifi:(phy)rate:0x0(  LP-1Mbps), pwr:20, txing:20
+W (1089) wifi:(phy)rate:0x1(  LP-2Mbps), pwr:20, txing:20
+W (1089) wifi:(phy)rate:0x2(LP-5.5Mbps), pwr:20, txing:20
+W (1093) wifi:(phy)rate:0x3( LP-11Mbps), pwr:20, txing:20
+W (1098) wifi:(phy)rate:0x5(  SP-2Mbps), pwr:20, txing:20
+W (1103) wifi:(phy)rate:0x6(SP-5.5Mbps), pwr:20, txing:20
+W (1109) wifi:(phy)rate:0x7( SP-11Mbps), pwr:20, txing:20
+W (1114) wifi:(phy)rate:0x8(    48Mbps), pwr:18, txing:18
+W (1119) wifi:(phy)rate:0x9(    24Mbps), pwr:19, txing:19
+W (1124) wifi:(phy)rate:0xa(    12Mbps), pwr:20, txing:20
+W (1129) wifi:(phy)rate:0xb(     6Mbps), pwr:20, txing:20
+W (1134) wifi:(phy)rate:0xc(    54Mbps), pwr:18, txing:18
+W (1139) wifi:(phy)rate:0xd(    36Mbps), pwr:19, txing:19
+W (1144) wifi:(phy)rate:0xe(    18Mbps), pwr:20, txing:20
+W (1150) wifi:(phy)rate:0xf(     9Mbps), pwr:20, txing:20
+W (1155) wifi:(phy)rate:0x10, mcs:0x0, pwr(bw20:20, bw40:19), txing:20
+W (1161) wifi:(phy)rate:0x11, mcs:0x1, pwr(bw20:20, bw40:19), txing:20
+W (1167) wifi:(phy)rate:0x12, mcs:0x2, pwr(bw20:20, bw40:19), txing:20
+W (1173) wifi:(phy)rate:0x13, mcs:0x3, pwr(bw20:20, bw40:19), txing:20
+W (1180) wifi:(phy)rate:0x14, mcs:0x4, pwr(bw20:19, bw40:18), txing:19
+W (1186) wifi:(phy)rate:0x15, mcs:0x5, pwr(bw20:19, bw40:18), txing:19
+W (1192) wifi:(phy)rate:0x16, mcs:0x6, pwr(bw20:18, bw40:17), txing:18
+W (1198) wifi:(phy)rate:0x17, mcs:0x7, pwr(bw20:18, bw40:17), txing:18
+W (1205) wifi:(phy)rate:0x18, mcs:0x8, pwr(bw20:16, bw40:16), txing:16
+W (1211) wifi:(phy)rate:0x19, mcs:0x9, pwr(bw20:15, bw40:15), txing:15
+I (1217) wifi:11ax coex: WDEVAX_PTI0(0x04000000), WDEVAX_PTI1(0x00004065).
+
+I (1224) wifi:mode : sta (30:ed:a0:f3:f8:40)
+I (1228) wifi:enable tsf
+I (1231) wifi:Set ps type: 0, coexist: 0
+
+I (1234) wifi:ic_enable_sniffer
+I (1238) stream_usb: Internal DMA sample buffer; remaining internal heap 101224
+I (1244) stream_usb: USB event priority 24, Wi-Fi priority 23
+W (1249) tusb_desc: No Qualifier descriptor provided, using default.
+I (1255) tusb_desc: 
+┌─────────────────────────────────┐
+│  USB Device Descriptor Summary  │
+├───────────────────┬────────���────┤
+│bDeviceClass       │ 0           │
+├───────────────────┼─────────────┤
+│bDeviceSubClass    │ 0           │
+├───────────────────┼─────────────┤
+│bDeviceProtocol    │ 0           │
+├───────────────────┼─────────────┤
+│bMaxPacketSize0    │ 64          │
+├───────────────────┼─────────────┤
+│idVendor           │ 0x303a      │
+├───────────────────┼─────────────┤
+│idProduct          │ 0x4531      │
+├───────────────────┼─────────────┤
+│bcdDevice          │ 0x200       │
+├───────────────────┼─────────────┤
+│iManufacturer      │ 0x1         │
+├────────────���──────┼─────────────┤
+│iProduct           │ 0x2         │
+├───────────────────┼─────────────┤
+│iSerialNumber      │ 0x3         │
+├───────────────────┼─────────────┤
+│bNumConfigurations │ 0x1         │
+└───────────────────┴─────────────┘
+I (1423) TinyUSB: TinyUSB Driver installed on port 0
+I (1971) esp_eth.netif.netif_glue: 32:ed:a0:f3:f8:41
+I (1971) esp_eth.netif.netif_glue: ethernet attached to netif
+I (4672) main_task: Returned from app_main()
+I (6197) esp_netif_handlers: eth ip: 192.168.0.149, mask: 255.255.255.0, gw: 192.168.0.1
+I (6197) stream: Web interface: http://192.168.0.149

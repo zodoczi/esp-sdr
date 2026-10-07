@@ -40,15 +40,18 @@ def main():
     output = args.output.resolve() / args.profile
     if output.exists():
         parser.error(f'Output already exists: {output}; choose a fresh artifact directory')
-    env = dict(os.environ, IDF_PY_BUILD_JOBS=str(args.jobs), IDF_COMPONENT_MANAGER='0')
+    env = dict(os.environ, IDF_PY_BUILD_JOBS=str(args.jobs), IDF_COMPONENT_MANAGER='1' if profile.get('streaming') else '0')
     command = [sys.executable, str(Path(sdk) / 'tools/idf.py')]
     if profile['preview']:
         command.append('--preview')
     command += ['-C', str(ROOT), '-B', str(build), '-DIDF_TARGET=' + profile['target'],
                 '-DSDKCONFIG=' + str(build / 'sdkconfig'),
-                '-DSDKCONFIG_DEFAULTS=' + str(ROOT / ('sdkconfig.defaults.' + profile['target'])),
-                '-DRING_PROBE=OFF', '-DSAMPLE_RATE_PROBE=OFF', '-DFILTER_REGISTER_PROBE=OFF', '-DS3_RF_PROBE=OFF',
-                '-DC5_TUNE_PROBE=OFF', '-DS2_RF_PROBE=OFF', 'build']
+                '-DSDKCONFIG_DEFAULTS=' + str(ROOT / profile.get('sdkconfig', 'sdkconfig.defaults.' + profile['target'])),
+                '-DESP_SDR_STREAMING=' + ('ON' if profile.get('streaming') else 'OFF')]
+    if not profile.get('streaming'):
+        command += ['-DRING_PROBE=OFF', '-DSAMPLE_RATE_PROBE=OFF', '-DFILTER_REGISTER_PROBE=OFF',
+                    '-DS3_RF_PROBE=OFF', '-DC5_TUNE_PROBE=OFF', '-DS2_RF_PROBE=OFF']
+    command.append('build')
     subprocess.run(command, env=env, check=True)
     export(build, output, profile['id'], profile['label'], args.version, profile['allow_larger_flash'])
     provenance = {'profile': profile['id'], 'version': args.version, 'idf_commit': revision}

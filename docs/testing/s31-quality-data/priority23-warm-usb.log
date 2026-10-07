@@ -1,0 +1,131 @@
+1.00118 s: 13858656 samples, 13.8423 MS/s, missing=0, overflows=0, timeouts=0
+2.00139 s: 33862752 samples, 16.9197 MS/s, missing=0, overflows=0, timeouts=0
+{"pause": 0, "elapsed_ms": 25.13293700030772}
+3.00139 s: 53364192 samples, 17.7798 MS/s, missing=0, overflows=0, timeouts=0
+{"pause": 1, "elapsed_ms": 25.098548001551535}
+4.02658 s: 73870272 samples, 18.3457 MS/s, missing=0, overflows=0, timeouts=0
+5.05155 s: {"pause": 2, "elapsed_ms": 25.107415996899363}
+94369632 samples, 18.6813 MS/s, missing=0, overflows=0, timeouts=0
+{"pause": 3, "elapsed_ms": 25.129055997240357}
+6.07727 s: 114869664 samples, 18.9015 MS/s, missing=0, overflows=0, timeouts=0
+{"pause": 4, "elapsed_ms": 25.112117997196037}
+7.10278 s: 135385824 samples, 19.061 MS/s, missing=0, overflows=0, timeouts=0
+8.12755 s: 155896608 samples, {"pause": 5, "elapsed_ms": 25.106650005909614}
+19.1813 MS/s, missing=0, overflows=0, timeouts=0
+9.1276 s: 176385216 samples, 19.3244 MS/s, missing=0, overflows=0, timeouts=0
+{"pause": 6, "elapsed_ms": 25.11667100043269}
+10.1278 s: 196388640 samples, 19.391 MS/s, missing=0, overflows=0, timeouts=0
+{"pause": 7, "elapsed_ms": 25.10812700347742}
+11.128 s: 216392736 samples, 19.4458 MS/s, missing=0, overflows=0, timeouts=0
+{"pause": 8, "elapsed_ms": 25.104833002842497}
+12.1282 s: 236396160 samples, 19.4914 MS/s, missing=0, overflows=0, timeouts=0
+{"pause": 9, "elapsed_ms": 25.110356997174677}
+13.1284 s: 256400256 samples, 19.5302 MS/s, missing=0, overflows=0, timeouts=0
+14.1286 s: 276403680 samples, 19.5634 MS/s, missing=0, overflows=0, timeouts=0
+15.1288 s: 296407776 samples, 19.5923 MS/s, missing=0, overflows=0, timeouts=0
+16.129 s: 316411200 samples, 19.6175 MS/s, missing=0, overflows=0, timeouts=0
+17.1292 s: 336414624 samples, 19.6398 MS/s, missing=0, overflows=0, timeouts=0
+18.1294 s: 356418720 samples, 19.6597 MS/s, missing=0, overflows=0, timeouts=0
+19.1295 s: 376422144 samples, 19.6775 MS/s, missing=0, overflows=0, timeouts=0
+20.1297 s: 396426240 samples, 19.6936 MS/s, missing=0, overflows=0, timeouts=0
+21.13 s: 416429664 samples, 19.708 MS/s, missing=0, overflows=0, timeouts=0
+22.1301 s: 436433760 samples, 19.7213 MS/s, missing=0, overflows=0, timeouts=0
+23.1304 s: 456437184 samples, 19.7332 MS/s, missing=0, overflows=0, timeouts=0
+24.1306 s: 476441280 samples, 19.7443 MS/s, missing=0, overflows=0, timeouts=0
+25.1307 s: 496444704 samples, 19.7545 MS/s, missing=0, overflows=0, timeouts=0
+26.1309 s: 516448128 samples, 19.7639 MS/s, missing=0, overflows=0, timeouts=0
+27.1312 s: 536452224 samples, 19.7726 MS/s, missing=0, overflows=0, timeouts=0
+28.1314 s: 556455648 samples, 19.7806 MS/s, missing=0, overflows=0, timeouts=0
+29.1316 s: 576459744 samples, 19.7881 MS/s, missing=0, overflows=0, timeouts=0
+30.1318 s: 596463168 samples, 19.7952 MS/s, missing=0, overflows=0, timeouts=0
+31.1319 s: 616467264 samples, 19.8018 MS/s, missing=0, overflows=0, timeouts=0
+32.1321 s: 636470688 samples, 19.8079 MS/s, missing=0, overflows=0, timeouts=0
+33.1329 s: 656474784 samples, 19.8134 MS/s, missing=10842, overflows=5, timeouts=0
+34.1329 s: 676469472 samples, 19.8187 MS/s, missing=15546, overflows=7, timeouts=0
+35.1335 s: 696481632 samples, 19.8239 MS/s, missing=15546, overflows=7, timeouts=0
+36.1337 s: 716485728 samples, 19.8287 MS/s, missing=15546, overflows=7, timeouts=0
+37.1339 s: 736489152 samples, 19.8333 MS/s, missing=15546, overflows=7, timeouts=0
+38.1341 s: 756493248 samples, 19.8377 MS/s, missing=15546, overflows=7, timeouts=0
+39.1343 s: 776496672 samples, 19.8419 MS/s, missing=15546, overflows=7, timeouts=0
+40.1345 s: 796500768 samples, 19.8458 MS/s, missing=15546, overflows=7, timeouts=0
+41.1347 s: 816504192 samples, 19.8495 MS/s, missing=15546, overflows=7, timeouts=0
+42.1349 s: 836507616 samples, 19.8531 MS/s, missing=15546, overflows=7, timeouts=0
+43.1351 s: 856511712 samples, 19.8565 MS/s, missing=15546, overflows=7, timeouts=0
+44.1353 s: 876515136 samples, 19.8597 MS/s, missing=15546, overflows=7, timeouts=0
+45.1355 s: 896519232 samples, 19.8628 MS/s, missing=15546, overflows=7, timeouts=0
+46.1357 s: 916522656 samples, 19.8658 MS/s, missing=15546, overflows=7, timeouts=0
+47.1359 s: 936526752 samples, 19.8687 MS/s, missing=15546, overflows=7, timeouts=0
+48.1363 s: 956530176 samples, 19.8713 MS/s, missing=15546, overflows=7, timeouts=0
+49.1366 s: 976534272 samples, 19.8739 MS/s, missing=22236, overflows=10, timeouts=0
+50.1368 s: 996537696 samples, 19.8764 MS/s, missing=22236, overflows=10, timeouts=0
+51.137 s: 1016541120 samples, 19.8788 MS/s, missing=22236, overflows=10, timeouts=0
+52.1372 s: 1036545216 samples, 19.8811 MS/s, missing=22236, overflows=10, timeouts=0
+53.1374 s: 1056548640 samples, 19.8833 MS/s, missing=22236, overflows=10, timeouts=0
+54.1376 s: 1076552736 samples, 19.8855 MS/s, missing=22236, overflows=10, timeouts=0
+55.1378 s: 1096556160 samples, 19.8876 MS/s, missing=22236, overflows=10, timeouts=0
+56.138 s: 1116560256 samples, 19.8896 MS/s, missing=22236, overflows=10, timeouts=0
+57.1382 s: 1136563680 samples, 19.8915 MS/s, missing=22236, overflows=10, timeouts=0
+58.1384 s: 1156567776 samples, 19.8933 MS/s, missing=22236, overflows=10, timeouts=0
+59.1386 s: 1176571200 samples, 19.8951 MS/s, missing=22236, overflows=10, timeouts=0
+60.1388 s: 1196574624 samples, 19.8969 MS/s, missing=22236, overflows=10, timeouts=0
+61.139 s: 1216578720 samples, 19.8986 MS/s, missing=22236, overflows=10, timeouts=0
+62.1392 s: 1236582144 samples, 19.9002 MS/s, missing=22236, overflows=10, timeouts=0
+63.1394 s: 1256586240 samples, 19.9018 MS/s, missing=22236, overflows=10, timeouts=0
+64.1397 s: 1276589664 samples, 19.9033 MS/s, missing=22236, overflows=10, timeouts=0
+65.1403 s: 1296561504 samples, 19.9041 MS/s, missing=51162, overflows=23, timeouts=0
+66.1416 s: 1316597184 samples, 19.9057 MS/s, missing=53208, overflows=24, timeouts=0
+67.1417 s: 1336601280 samples, 19.9072 MS/s, missing=53208, overflows=24, timeouts=0
+68.1419 s: 1356604704 samples, 19.9085 MS/s, missing=53208, overflows=24, timeouts=0
+69.1421 s: 1376608128 samples, 19.9098 MS/s, missing=53208, overflows=24, timeouts=0
+70.1424 s: 1396612224 samples, 19.9111 MS/s, missing=53208, overflows=24, timeouts=0
+71.1425 s: 1416615648 samples, 19.9124 MS/s, missing=53208, overflows=24, timeouts=0
+72.1427 s: 1436619744 samples, 19.9136 MS/s, missing=53208, overflows=24, timeouts=0
+73.143 s: 1456623168 samples, 19.9147 MS/s, missing=53208, overflows=24, timeouts=0
+74.1432 s: 1476627264 samples, 19.9159 MS/s, missing=53208, overflows=24, timeouts=0
+75.1433 s: 1496630688 samples, 19.917 MS/s, missing=53208, overflows=24, timeouts=0
+76.1435 s: 1516634784 samples, 19.9181 MS/s, missing=53208, overflows=24, timeouts=0
+77.1439 s: 1536638208 samples, 19.9191 MS/s, missing=53208, overflows=24, timeouts=0
+78.1439 s: 1556642304 samples, 19.9202 MS/s, missing=53208, overflows=24, timeouts=0
+79.1441 s: 1576645728 samples, 19.9212 MS/s, missing=53208, overflows=24, timeouts=0
+80.1443 s: 1596649152 samples, 19.9222 MS/s, missing=53208, overflows=24, timeouts=0
+81.1445 s: 1616653248 samples, 19.9231 MS/s, missing=53208, overflows=24, timeouts=0
+82.1447 s: 1636656672 samples, 19.9241 MS/s, missing=53208, overflows=24, timeouts=0
+83.1449 s: 1656660768 samples, 19.925 MS/s, missing=53208, overflows=24, timeouts=0
+84.1451 s: 1676664192 samples, 19.9259 MS/s, missing=53208, overflows=24, timeouts=0
+85.1453 s: 1696667616 samples, 19.9267 MS/s, missing=53208, overflows=24, timeouts=0
+86.1455 s: 1716671712 samples, 19.9276 MS/s, missing=53208, overflows=24, timeouts=0
+87.1457 s: 1736675136 samples, 19.9284 MS/s, missing=53208, overflows=24, timeouts=0
+88.1459 s: 1756679232 samples, 19.9292 MS/s, missing=53208, overflows=24, timeouts=0
+89.1462 s: 1776682656 samples, 19.93 MS/s, missing=53208, overflows=24, timeouts=0
+90.1463 s: 1796686752 samples, 19.9308 MS/s, missing=53208, overflows=24, timeouts=0
+91.1465 s: 1816690176 samples, 19.9315 MS/s, missing=53208, overflows=24, timeouts=0
+92.1467 s: 1836694272 samples, 19.9323 MS/s, missing=53208, overflows=24, timeouts=0
+93.1469 s: 1856697696 samples, 19.933 MS/s, missing=53208, overflows=24, timeouts=0
+94.147 s: 1876701120 samples, 19.9337 MS/s, missing=53208, overflows=24, timeouts=0
+95.1473 s: 1896705216 samples, 19.9344 MS/s, missing=53208, overflows=24, timeouts=0
+96.1476 s: 1916708640 samples, 19.9351 MS/s, missing=53208, overflows=24, timeouts=0
+97.1477 s: 1936712736 samples, 19.9358 MS/s, missing=53208, overflows=24, timeouts=0
+98.1479 s: 1956716160 samples, 19.9364 MS/s, missing=53208, overflows=24, timeouts=0
+99.1481 s: 1976720256 samples, 19.9371 MS/s, missing=53208, overflows=24, timeouts=0
+100.148 s: 1996723680 samples, 19.9377 MS/s, missing=53208, overflows=24, timeouts=0
+101.148 s: 2016727776 samples, 19.9383 MS/s, missing=53208, overflows=24, timeouts=0
+102.149 s: 2036731200 samples, 19.9389 MS/s, missing=53208, overflows=24, timeouts=0
+103.149 s: 2056734624 samples, 19.9395 MS/s, missing=53208, overflows=24, timeouts=0
+104.149 s: 2076738720 samples, 19.9401 MS/s, missing=53208, overflows=24, timeouts=0
+105.149 s: 2096742144 samples, 19.9406 MS/s, missing=53208, overflows=24, timeouts=0
+106.149 s: 2116746240 samples, 19.9412 MS/s, missing=53208, overflows=24, timeouts=0
+107.15 s: 2136749664 samples, 19.9417 MS/s, missing=53208, overflows=24, timeouts=0
+108.15 s: 2156753760 samples, 19.9422 MS/s, missing=53208, overflows=24, timeouts=0
+109.15 s: 2176757184 samples, 19.9428 MS/s, missing=53208, overflows=24, timeouts=0
+110.15 s: 2196761280 samples, 19.9433 MS/s, missing=53208, overflows=24, timeouts=0
+111.151 s: 2216764704 samples, 19.9438 MS/s, missing=53208, overflows=24, timeouts=0
+112.151 s: 2236768128 samples, 19.9443 MS/s, missing=53208, overflows=24, timeouts=0
+113.151 s: 2256772224 samples, 19.9448 MS/s, missing=53208, overflows=24, timeouts=0
+114.151 s: 2276775648 samples, 19.9453 MS/s, missing=53208, overflows=24, timeouts=0
+115.151 s: 2296779744 samples, 19.9457 MS/s, missing=53208, overflows=24, timeouts=0
+116.151 s: 2316783168 samples, 19.9462 MS/s, missing=53208, overflows=24, timeouts=0
+117.152 s: 2336787264 samples, 19.9467 MS/s, missing=53208, overflows=24, timeouts=0
+118.152 s: 2356790688 samples, 19.9471 MS/s, missing=53208, overflows=24, timeouts=0
+119.152 s: 2376794784 samples, 19.9476 MS/s, missing=53208, overflows=24, timeouts=0
+Total: samples=2393757408 missing=53208 queue_drops=0 invalid=0 overflows=24 timeouts=0 elapsed=120
+{"pauses_completed": 10, "monitor_exit": 1}

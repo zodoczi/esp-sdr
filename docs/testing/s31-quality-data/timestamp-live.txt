@@ -1,0 +1,2 @@
+{"device": "driver=espsdr,usb=1", "rate": 20000000, "verified_samples": 13440, "packet_boundaries": 19}
+{"device": "driver=espsdr,host=192.168.0.149", "rate": 40000000, "verified_samples": 13440, "packet_boundaries": 19}

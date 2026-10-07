@@ -31,21 +31,62 @@ While we have a very good understanding of how the IQ sampling functionality wor
 
 ## Chip support
 
-| Chip | Status | Native USB | UART0 TX / RX | Minimum flash |
-| --- | --- | --- | --- | --- |
-| ESP32 | ✅ Supported | — | GPIO1 / GPIO3 | 2 MB |
-| ESP32-C2 | 🚧 Unsupported | — | — | — |
-| ESP32-C3 | ✅ Supported | Serial/JTAG | GPIO21 / GPIO20 | 2 MB |
-| ESP32-C5 | ✅ Supported | Serial/JTAG | GPIO11 / GPIO12 | 2 MB |
-| ESP32-C6 | ✅ Supported | Serial/JTAG | GPIO16 / GPIO17 | 2 MB |
-| ESP32-C61 | ✅ Supported | Serial/JTAG | GPIO11 / GPIO10 | 2 MB |
-| ESP32-H2 | 🚧 Unsupported | — | — | — |
-| ESP32-H21 | 🚧 Unsupported | — | — | — |
-| ESP32-H4 | 🚧 Unsupported | — | — | — |
-| ESP32-P4 | ❌ Unsupported; no integrated radio | — | — | — |
-| ESP32-S2 | ✅ Supported | USB-OTG CDC | GPIO43 / GPIO44 | 4 MB |
-| ESP32-S3 | ✅ Supported | Serial/JTAG | GPIO43 / GPIO44 | 2 MB |
-| ESP32-S31 | ✅ Supported | Serial/JTAG | GPIO58 / GPIO59 | 2 MB |
+| Chip | Status | Native USB | UART0 TX / RX | Minimum flash | Special modes / firmware |
+| --- | --- | --- | --- | --- | --- |
+| ESP32 | ✅ | — | GPIO1 / GPIO3 | 2 MB | — |
+| ESP32-C2 | ✅ (26 MHz crystal) | — | GPIO20 / GPIO19 | 2 MB | — |
+| ESP32-C3 | ✅ | Serial/JTAG | GPIO21 / GPIO20 | 2 MB | — |
+| ESP32-C5 | ✅ | Serial/JTAG | GPIO11 / GPIO12 | 2 MB | — |
+| ESP32-C6 | ✅ | Serial/JTAG | GPIO16 / GPIO17 | 2 MB | — |
+| ESP32-C61 | ✅ | Serial/JTAG | GPIO11 / GPIO10 | 2 MB | — |
+| ESP32-H2 | ✅ | Serial/JTAG | GPIO24 / GPIO23 | 2 MB | — |
+| ESP32-H21 | 🚧 | — | — | — | — |
+| ESP32-H4 | 🚧 | — | — | — | — |
+| ESP32-P4 | ❌ | — | — | — | — |
+| ESP32-S2 | ✅ | USB-OTG CDC | GPIO43 / GPIO44 | 4 MB | — |
+| ESP32-S3 | ✅ | Serial/JTAG | GPIO43 / GPIO44 | 2 MB | [Continuous decimated I/Q over USB (15.625–250 kSa/s)](#s3-streaming) |
+| ESP32-S31 | ✅ | Serial/JTAG | GPIO58 / GPIO59 | 2 MB | [High Speed USB / Ethernet streaming at up to 40 MSa/s (experimental)](#s31-streaming) |
+
+✅ Supported · 🚧 Not yet supported · ❌ Unsupported (no integrated radio).
+
+USB, UART, and flash requirements above refer to the standard firmware; see each
+special firmware variant for its board requirements.
+
+## Special Chip- / Board-Specific Modes and Firmware
+
+<a id="s31-streaming"></a>
+
+### **ESP32-S31**: Ethernet / high-speed USB streaming
+
+**Experimental:** The S31 streaming mode is under development. Signal quality,
+including the remaining DC peak, still needs improvement.
+
+The separate **`esp32s31-stream`** firmware targets the ESP32-S31 Function-CoreBoard
+with Gigabit Ethernet and native high-speed USB. It streams receive-only I/Q to
+**[SoapyESPSDR](https://github.com/ESPARGOS/SoapyESPSDR)** and includes an on-device web page for receiver controls and
+status, with rates up to 20 MSa/s over USB and 40 MSa/s over Ethernet using
+8-bit I plus 8-bit Q. The ordinary `esp32s31` firmware provides serial burst/FFT capture
+for ESP-WebSDR. See [streaming build, architecture, and protocol](docs/s31-streaming.md).
+
+![Gqrx displaying an LTE signal at 2.63 GHz, continuously sampled at 40 MSa/s over Ethernet with an ESP32-S31 and SoapyESPSDR.](docs/gqrx-esp-sdr.png)
+
+<a id="s3-streaming"></a>
+
+### **ESP32-S3**: Continuous I/Q streaming over USB
+
+The standard **`esp32s3`** firmware includes an **`IQS`** mode for continuous,
+decimated I/Q streaming over native USB Serial/JTAG. The second core filters
+and decimates the 16 MSa/s capture stream by powers of two from 64 to 1024,
+giving output rates from **250 down to 15.625 kSa/s**, with 4, 8 or 16 bits per
+I and Q component. This mode requires native USB; UART is not supported.
+
+Use [esp-sdr-bridge](https://github.com/z2labs/esp-sdr-bridge) to connect the
+receiver to SDR++, SDR#, Gqrx or GNU Radio through SpyServer / rtl_tcp.
+For custom clients, `IQS 0 64 8 6` starts a 250 kSa/s stream with 8-bit I and
+8-bit Q until the host sends a byte to stop it. Frames include sample indices,
+gap flags and CRC32 checksums; host stalls or processing overruns can cause
+sample loss. See the [continuous I/Q protocol](docs/iq-stream.md) for command
+options, sample formats, filtering and frequency-offset tuning.
 
 ## On-chip spectrum streaming
 
@@ -56,10 +97,12 @@ transport before offering this mode.
 | Chip | Continuous RF capture with on-chip FFT | Snapshot FFT |
 | --- | --- | --- |
 | ESP32 | — | 256–2048 bins; 16/40/80 MS/s; UART |
-| ESP32-C3 | 256 bins; 80 MS/s; native USB | 512–2048 bins over USB; 256–2048 over UART |
+| ESP32-C2 | — | 256–2048 bins; 80/40/16 MS/s; UART |
+| ESP32-C3 | — | 256–2048 bins; 80 MS/s; USB or UART |
 | ESP32-C5 | — | 256–2048 bins; 4/8/10/20/40/80 MS/s |
 | ESP32-C6 | 256 bins; 80 MS/s; native USB | 512–2048 bins over USB; 256–2048 over UART |
-| ESP32-C61 | 256 bins; 4/8/10/20/40/80 MS/s; native USB | 512/1024 bins over USB; 256–1024 over UART |
+| ESP32-H2 | — | 256–2048 bins; 6.4/10.667/16/32 MS/s; USB or UART |
+| ESP32-C61 | 256 bins; 4/8/10/20/40/80 MS/s; native USB | 512–2048 bins over USB; 256–2048 over UART |
 | ESP32-S2 | — | 256–2048 bins; 16/40/80 MS/s; USB or UART |
 | ESP32-S3 | 256–2048 bins; 16/40/80 MS/s; native USB | — |
 | ESP32-S31 | 256–2048 bins; 4/8/10/20/40/80 MS/s; native USB | Same FFT sizes and rates over UART |
@@ -72,11 +115,15 @@ available separately.
 
 The original S3 Turbo Mode was developed by Zoltan Doczi from
 [Z2Labs](https://www.z2labs.io/). The shared implementation extends it with
-C6/C61 bank rotation, C3 live-bank reads, S31 dual-core SIMD processing with
+C6/C61 bank rotation, S31 dual-core SIMD processing with
 continuous bank rotation, and portable snapshot FFTs.
 See [spectrum protocol and hardware validation](docs/spectrum.md) for the
 wire format, limitations and test results. The S3 ring diagnostic host tool
 is [tools/s3_ring.py](tools/s3_ring.py).
+
+GPIO outputs can be controlled from the browser’s GPIO section or the serial
+protocol. Firmware reports available pins; each supports high impedance (Z),
+low (0), or high (1). See [GPIO controls](docs/rx-controls.md#gpio-outputs).
 
 ## Commands and transport
 
@@ -86,6 +133,8 @@ request/response protocol: send newline-terminated ASCII commands and read
 text replies. Capture replies also include a binary I/Q payload.
 
 Query `INFO` and `CAPS` to identify the firmware and supported features.
+`VERSION?` reports the Git revision and UTC build date/time; see
+[firmware version reporting](docs/firmware-version.md).
 `LIMITS?` reports receive-control limits, `RANGE?` reports the tuning range,
 and `TRANSPORT?` identifies the active interface. Configure reception with
 `FREQ <MHz>`, `BANDWIDTH <MHz>` and `GAIN` commands.
@@ -105,7 +154,7 @@ receive `ERR busy`.
 
 ## Build and flash
 
-[firmware-targets.json](firmware-targets.json) lists the supported profiles and
+[firmware-targets.json](firmware-targets.json) lists the supported firmware variants and
 pins their ESP-IDF commits, including the preview SDK for S31. Check out the
 matching SDK, initialize its submodules, run `install.sh <target>`, and source
 `export.sh`.
@@ -121,10 +170,27 @@ idf.py -B build-s3 -p /dev/ttyACM0 flash
 
 Substitute the target and paths for your chip. S31 also requires `idf.py --preview`.
 
+The C2 firmware uses a **26 MHz crystal**, as on the tested ESP8684H board.
+For a 40 MHz board, select `CONFIG_XTAL_FREQ_40=y` in menuconfig and rebuild;
+the packaged browser image requires 26 MHz. C2 uses UART0 at 2 Mbaud by
+default. With a CH340 bridge, use the viewer's **Switch to 1 Mbaud** warning
+when transfers lose bytes; baud changes are session-only. C2 provides raw
+IQ8/IQ10 captures, hardware/manual gain, and snapshot FFTs. Continuous capture
+is not advertised; approximate analog bandwidth covers 12–20 MHz.
+See [C2 backend and validation](docs/esp32c2.md).
+
+The `esp32h2` firmware uses the Bluetooth PHY capture engine and supports
+both native USB Serial/JTAG and UART0. It supports 32, 16, approximately 10.667 and 6.4 MS/s hardware sampling,
+plus approximately 4–11 MHz analog bandwidth control.
+See [H2 backend and validation](docs/esp32h2.md).
+
 ## Source layout
 
 - `main/targets/<target>/`: chip receiver or adapter, tuning helpers, and the
   linker guard for its capture SRAM. CMake selects only the requested target.
+- `main/targets/esp32s31/burst/`: serial IQ capture and on-chip FFT firmware.
+- `main/targets/esp32s31/streaming/`: continuous USB/Ethernet IQ application for
+  SoapyESPSDR. Both S31 firmware variants share `main/targets/esp32s31/tuning.h`.
 - `main/families/c5_c6_c61/`: receiver shared by C5, C6, and C61; its `chip.h`
   comes from the selected target directory.
 - `main/common/`: burst serial transport, gain control, limits, and bandwidth
@@ -134,10 +200,11 @@ Substitute the target and paths for your chip. S31 also requires `idf.py --previ
 
 The application component and UART configuration stay in `main/`. Target SDK
 defaults stay at the repository root for the build tools and ESP-IDF defaults
-lookup. The firmware uses the burst protocol over UART/native USB; the former
-Ethernet and vendor USB streaming application is no longer included.
+lookup. The firmware uses the burst protocol over UART/native USB; the separate
+`main/targets/esp32s31/streaming/` application implements the receive-only Ethernet and
+vendor USB streaming firmware.
 
-Run `python3 -m unittest discover -s tests` for host checks. Build every profile
+Run `python3 -m unittest discover -s tests` for host checks. Build every firmware variant
 with `tools/build_firmware.py` and its pinned SDK before distributing a change;
 the CI matrix does this automatically. Preserve the target SRAM guards and
 gain-table linker wrappers when moving or refactoring receiver code.
@@ -149,13 +216,22 @@ Hardware AGC is the default. `GAIN MANUAL <index>` sets manual gain;
 bandwidths, sample rates and bit depths. `BANDWIDTH <MHz>` sets approximate
 analog bandwidth; zero selects the widest setting.
 
-All eight chips accept tuning attempts from **100–6000 MHz in 1 MHz steps**.
+All supported burst targets accept tuning attempts from **100–6000 MHz in 1 MHz steps**.
 The viewer shows an informational warning outside 2400–2483.5 MHz, with
 5150–5895 MHz also treated as the supported 5 GHz Wi-Fi band on C5. The warning never blocks tuning.
-These are software attempt limits; the expanded range has not been hardware
-validated.
+These are software attempt limits, not a guaranteed reception range.
+ESP32, S2, S3, C2, C3 and C6 automatically use the experimental **5/6 LO mode from
+1842–2209 MHz**, extending reception down to about **1.84 GHz** on the tested
+boards. No extra command or browser setting is needed. An equivalent divider
+mode is not yet verified on C5, C61, H2 or S31. C61 and S31 instead recover
+failed low-band PLL calibration automatically, with reception verified down
+to **2.18 GHz and 2.15 GHz**, respectively, on the tested boards. This uses
+hardware capacitor calibration and also applies to S31 streaming; the
+achievable range depends on the individual chip.
 
 - **ESP32:** 80/40/16 MS/s.
+- **C2:** 80/40/16 MS/s; up to 8,190 complex samples; approximately 12–20 MHz analog bandwidth.
+- **H2:** 32/16/10.667/6.4 MS/s; approximately 4–11 MHz analog bandwidth; up to 16,380 complex samples.
 - **C3:** 80 MS/s; 14–62 MHz analog bandwidth.
 - **C5:** 11–48 MHz bandwidth; selects its 5 GHz RF path above 3000 MHz.
 - **C61:** 80/40/20/10/8/4 MS/s; 13–54 MHz bandwidth.
@@ -189,6 +265,10 @@ See [receive-control details](docs/rx-controls.md).
   </tr>
 </table>
 
+Special thanks to [h0m3us3r](https://github.com/h0m3us3r) for providing
+[eSpDR](https://github.com/h0m3us3r/eSpDR), whose 5/6 LO investigation informed
+our lower-frequency tuning implementation.
+
 ## License
 
 ESP-SDR is licensed under the GNU General Public License as published by the
@@ -214,4 +294,4 @@ Third-party components retain their own licenses and copyright notices,
 including the Apache-2.0 ESP-IDF compatibility code in
 `platform/esp32s2/esp_usb_cdc_rom_console/`, the pinned
 [ESP-DSP component](components/esp-dsp/LICENSE), and the derived FFT kernels
-in `main/targets/esp32s3/s3_fft_rnd.S` and `main/targets/esp32s31/s31_fft_rnd.S`.
+in `main/targets/esp32s3/s3_fft_rnd.S` and `main/targets/esp32s31/burst/s31_fft_rnd.S`.

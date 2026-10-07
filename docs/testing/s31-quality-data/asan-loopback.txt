@@ -1,0 +1,6 @@
+.....[1m[31m[ERROR] ESP-SDR receive: Invalid ESP-SDR RX v2 packet[0m
+..
+----------------------------------------------------------------------
+Ran 7 tests in 2.773s
+
+OK

@@ -1,4 +1,4 @@
-/* Shared continuous ADC-dump capture: bank rotation/live reads and on-chip
+/* Shared continuous ADC-dump capture: bank rotation and on-chip
  * spectrum reduction. Rotation scheme after h0m3us3r/eSpDR (capture.c),
  * adapted to one core under ESP-IDF. */
 #pragma once
@@ -8,11 +8,7 @@
 #include "sdkconfig.h"
 #include "spectrum_dc.h"
 
-#if CONFIG_IDF_TARGET_ESP32C3
-#define RING_BANKS 1u
-#define RING_BANK_BASE 0x3fcb0000u
-#define RING_BANK_END 0x3fcc0000u
-#elif CONFIG_IDF_TARGET_ESP32C6
+#if CONFIG_IDF_TARGET_ESP32C6
 #define RING_BANKS 2u
 #define RING_BANK_BASE 0x40820000u
 #define RING_BANK_END 0x40860000u
@@ -88,7 +84,7 @@ typedef struct {
 
 void ring_capture_init(void);
 /* Caller has prepared the receiver (tuning, gain, filter). Interrupts are
- * disabled throughout bank rotation; C3 masks only its sample copy. */
+ * disabled throughout bank rotation. */
 void ring_capture_run(const ring_config_t *config, ring_result_t *result);
 const uint32_t *ring_capture_bank(unsigned bank);
 unsigned ring_capture_rate_hz(unsigned rate);

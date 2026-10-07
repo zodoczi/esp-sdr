@@ -10,6 +10,14 @@
       "preview": false
     },
     {
+      "id": "esp32c2",
+      "target": "esp32c2",
+      "label": "ESP32-C2 (26 MHz crystal, 2 MB or larger, UART)",
+      "idf_ref": "25fe69f946311abdaf9ad56591f25fedbc20ac98",
+      "allow_larger_flash": true,
+      "preview": false
+    },
+    {
       "id": "esp32c3",
       "target": "esp32c3",
       "label": "ESP32-C3 (2 MB or larger)",
@@ -58,12 +66,30 @@
       "preview": false
     },
     {
+      "id": "esp32h2",
+      "target": "esp32h2",
+      "label": "ESP32-H2 (2 MB or larger)",
+      "idf_ref": "25fe69f946311abdaf9ad56591f25fedbc20ac98",
+      "allow_larger_flash": true,
+      "preview": false
+    },
+    {
       "id": "esp32s2",
       "target": "esp32s2",
       "label": "ESP32-S2 (4 MB or larger)",
       "idf_ref": "25fe69f946311abdaf9ad56591f25fedbc20ac98",
       "allow_larger_flash": true,
       "preview": false
+    },
+    {
+      "id": "esp32s31-stream",
+      "target": "esp32s31",
+      "label": "ESP32-S31 Function-CoreBoard \u00b7 Ethernet / USB for SoapyESPSDR",
+      "idf_ref": "c712a0dde385d659a1470a136251980d31a70bc1",
+      "allow_larger_flash": true,
+      "preview": true,
+      "streaming": true,
+      "sdkconfig": "sdkconfig.defaults.esp32s31-stream"
     }
   ],
   "unavailable": {}

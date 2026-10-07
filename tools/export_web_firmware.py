@@ -20,6 +20,30 @@ def firmware_build_date(data):
         return None
 
 
+def firmware_version(data):
+    marker = b'ESP-SDR-VERSION:'
+    start = data.find(marker)
+    if start < 0:
+        return None
+    start += len(marker)
+    end = data.find(b'\0', start)
+    try:
+        if end < 0 or end - start > 512:
+            raise ValueError('Invalid firmware version record')
+        value = json.loads(data[start:end].decode('ascii'))
+        stamp = value['build_timestamp']
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z', stamp):
+            raise ValueError('Invalid build timestamp')
+        datetime.strptime(stamp, '%Y-%m-%dT%H:%M:%SZ')
+        if value['build_date'] != stamp[:10] or not re.fullmatch(r'(?:[a-f0-9]{40}(?:-dirty)?|unknown)', value['revision']):
+            raise ValueError('Invalid firmware metadata')
+        if not re.fullmatch(r'esp32[a-z0-9]*', value['profile']):
+            raise ValueError('Invalid firmware profile')
+        return value
+    except (KeyError, TypeError, UnicodeDecodeError, ValueError) as exc:
+        raise ValueError('Invalid embedded firmware version') from exc
+
+
 def export(build, output, board, label, version, allow_larger_flash=False):
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', board):
         raise ValueError('Board ID must contain only letters, numbers, dots, underscores or hyphens')
@@ -64,9 +88,21 @@ def export(build, output, board, label, version, allow_larger_flash=False):
         revision=board, label=label, target=target, chip=chip, version=version,
         flash_size=settings['flash_size'], flash_size_policy='minimum' if allow_larger_flash else 'exact',
         flash_settings=settings, esptool_args=args['extra_esptool_args'], parts=parts)})
+    if re.search(r'^ESP_SDR_STREAMING:BOOL=ON$', cache, re.MULTILINE):
+        manifest['variants'][board]['application'] = 'soapysdr'
+    if target == "esp32c2":
+        manifest["variants"][board]["xtal_mhz"] = config["XTAL_FREQ"]
     dates = [date for _, data in payloads if (date := firmware_build_date(data))]
     if dates:
         manifest['variants'][board]['build_date'] = dates[-1]
+    embedded = [record for _, data in payloads if (record := firmware_version(data))]
+    if embedded:
+        if len(embedded) != 1 or embedded[0]['profile'] != board:
+            raise ValueError('Embedded firmware profile differs from export profile')
+        record = embedded[0]
+        manifest['variants'][board].update(
+            git_revision=record['revision'], build_date=record['build_date'],
+            build_timestamp=record['build_timestamp'])
     # Each matrix job writes a separate artifact directory; never merge in place.
     output.mkdir(parents=True, exist_ok=False)
     images = output / board

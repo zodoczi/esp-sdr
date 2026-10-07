@@ -33,6 +33,8 @@ static unsigned burst_serial_baud(void) { return 2000000; }
 static void reply(const char *s) { snprintf(response,sizeof(response),"%s",s); }
 static bool gain_command(const char *s) { return false; }
 static bool ring_command(const char *s){return false;}
+static bool burst_version_command(const char *s) { return false; }
+static bool burst_gpio_command(const char *s) { return false; }
 static bool limits_command(const char *s) { return false; }
 static bool capture(unsigned n,unsigned divider,unsigned format) { ++captures; last_format=format; return true; }
 static void vTaskDelay(int ticks) {}

@@ -1,0 +1,11 @@
+{"cycle": 0, "samples": 777504, "overflows": 0, "timeouts": 0, "sensors": {"rx_samples": 777504, "rx_missing_samples": 0, "rx_queue_drops": 0, "rx_invalid_packets": 0}}
+{"cycle": 1, "samples": 776160, "overflows": 0, "timeouts": 0, "sensors": {"rx_samples": 776160, "rx_missing_samples": 0, "rx_queue_drops": 0, "rx_invalid_packets": 0}}
+{"cycle": 2, "samples": 774816, "overflows": 0, "timeouts": 0, "sensors": {"rx_samples": 774816, "rx_missing_samples": 0, "rx_queue_drops": 0, "rx_invalid_packets": 0}}
+{"cycle": 3, "samples": 776160, "overflows": 0, "timeouts": 0, "sensors": {"rx_samples": 776160, "rx_missing_samples": 0, "rx_queue_drops": 0, "rx_invalid_packets": 0}}
+{"cycle": 4, "samples": 776832, "overflows": 0, "timeouts": 0, "sensors": {"rx_samples": 776832, "rx_missing_samples": 0, "rx_queue_drops": 0, "rx_invalid_packets": 0}}
+{"cycle": 5, "samples": 775488, "overflows": 0, "timeouts": 0, "sensors": {"rx_samples": 775488, "rx_missing_samples": 0, "rx_queue_drops": 0, "rx_invalid_packets": 0}}
+{"cycle": 6, "samples": 776160, "overflows": 0, "timeouts": 0, "sensors": {"rx_samples": 776160, "rx_missing_samples": 0, "rx_queue_drops": 0, "rx_invalid_packets": 0}}
+{"cycle": 7, "samples": 775488, "overflows": 0, "timeouts": 0, "sensors": {"rx_samples": 775488, "rx_missing_samples": 0, "rx_queue_drops": 0, "rx_invalid_packets": 0}}
+{"cycle": 8, "samples": 776160, "overflows": 0, "timeouts": 0, "sensors": {"rx_samples": 776160, "rx_missing_samples": 0, "rx_queue_drops": 0, "rx_invalid_packets": 0}}
+{"cycle": 9, "samples": 774816, "overflows": 0, "timeouts": 0, "sensors": {"rx_samples": 774816, "rx_missing_samples": 0, "rx_queue_drops": 0, "rx_invalid_packets": 0}}
+{"device": "driver=espsdr,usb=1", "rate": 4000000.0, "passed": 10}

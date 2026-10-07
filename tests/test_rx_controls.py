@@ -18,10 +18,17 @@ class RxControls(unittest.TestCase):
     def test_bandwidth_curves_and_interpolation(self):
         source=r'''
 #include <assert.h>
+void rx_recalibrate(unsigned mhz) {}
 #include "rx_bandwidth.h"
 int main(void) {
  assert(rx_bandwidth_dcap(0)==0);
-#if CONFIG_IDF_TARGET_ESP32C3
+#if CONFIG_IDF_TARGET_ESP32H2
+ assert(rx_bandwidth_dcap(RX_BANDWIDTH_MAX)==0);
+ assert(rx_bandwidth_dcap(RX_BANDWIDTH_MIN)==112);
+#elif CONFIG_IDF_TARGET_ESP32C2
+ assert(rx_bandwidth_dcap(RX_BANDWIDTH_MAX)==32);
+ assert(rx_bandwidth_dcap(RX_BANDWIDTH_MIN)==63);
+#elif CONFIG_IDF_TARGET_ESP32C3
  assert(rx_bandwidth_dcap(RX_BANDWIDTH_MAX)==0);
  assert(rx_bandwidth_dcap(RX_BANDWIDTH_MIN)==63);
 #elif CONFIG_IDF_TARGET_ESP32S2
@@ -36,7 +43,13 @@ int main(void) {
 #endif
  for(unsigned mhz=RX_BANDWIDTH_MIN+1;mhz<=RX_BANDWIDTH_MAX;mhz++)
    if(rx_bandwidth_phy_mode(mhz)==rx_bandwidth_phy_mode(mhz-1))assert(rx_bandwidth_dcap(mhz)<=rx_bandwidth_dcap(mhz-1));
-#if CONFIG_IDF_TARGET_ESP32
+#if CONFIG_IDF_TARGET_ESP32H2
+ assert(RX_BANDWIDTH_MIN==4 && RX_BANDWIDTH_MAX==11);
+ assert(rx_bandwidth_dcap(5)==80 && rx_bandwidth_dcap(8)==24);
+#elif CONFIG_IDF_TARGET_ESP32C2
+ assert(RX_BANDWIDTH_MIN==12 && RX_BANDWIDTH_MAX==20);
+ assert(rx_bandwidth_dcap(17)==40 && rx_bandwidth_dcap(14)==48);
+#elif CONFIG_IDF_TARGET_ESP32
  assert(rx_bandwidth_dcap(48)==16);assert(rx_bandwidth_dcap(20)==64);
  assert(rx_bandwidth_dcap(32)==32);assert(rx_bandwidth_dcap(15)==96);
 #elif CONFIG_IDF_TARGET_ESP32C3
@@ -70,12 +83,13 @@ int main(void) {
  return 0;
 }
 '''
-        for chip in ['ESP32','ESP32C3','ESP32C5','ESP32C6','ESP32C61','ESP32S2','ESP32S3','ESP32S31']:
+        for chip in ['ESP32','ESP32C2','ESP32H2','ESP32C3','ESP32C5','ESP32C6','ESP32C61','ESP32S2','ESP32S3','ESP32S31']:
             self.compile_run(source,[f'-DCONFIG_IDF_TARGET_{chip}=1'])
 
     def test_c61_mirror_and_agc_restore(self):
         self.compile_run(r'''
 #include <assert.h>
+void rx_recalibrate(unsigned mhz) {}
 #include <stdint.h>
 static uint32_t hardware[160][3];
 void __real_phy_write_gain_mem(uint32_t a,uint32_t b,uint32_t c,uint32_t index) {
@@ -102,6 +116,7 @@ int main(void) {
         functions=source[source.index('static int rx_filter'):source.index('extern void rom_pbus_workmode')]
         self.compile_run(r'''
 #include <assert.h>
+void rx_recalibrate(unsigned mhz) {}
 static unsigned values[2]={0xd0,0xd2},writes;
 unsigned rom_chip_i2c_readReg(unsigned b,unsigned h,unsigned r){
  assert(b==0x67 && h==1 && (r==1 || r==2));return values[r-1];
@@ -129,6 +144,7 @@ int main(void){
         functions=source[source.index('static int rx_filter'):source.index('static unsigned frequency_mhz')]
         self.compile_run(r'''
 #include <assert.h>
+void rx_recalibrate(unsigned mhz) {}
 static unsigned values[2]={0xe3,0xa4},writes;
 unsigned rom1_chip_i2c_readReg(unsigned b,unsigned h,unsigned r){
  assert(b==0x67 && h==1 && (r==4 || r==5));return values[r-4];
@@ -146,5 +162,49 @@ int main(void){
  values[0]=0xd0;values[1]=0x92;rx_filter=16;rx_filter_apply();
  assert(values[0]==0xd0 && values[1]==0x90);rx_filter_restore();
  assert(values[0]==0xd0 && values[1]==0x92);
+}
+''')
+
+    def test_c2_filter_restores_calibration(self):
+        source=(ROOT/'main/targets/esp32c2/receiver.c').read_text()
+        functions=source[source.index('static int rx_filter'):source.index('static unsigned frequency_mhz')]
+        self.compile_run(r'''
+#include <assert.h>
+void rx_recalibrate(unsigned mhz) {}
+static unsigned values[2]={0xe3,0xa4},writes;
+unsigned rom_chip_i2c_readReg(unsigned b,unsigned h,unsigned r){
+ assert(b==0x67 && h==1 && (r==4 || r==5));return values[r-4];
+}
+void rom_chip_i2c_writeReg(unsigned b,unsigned h,unsigned r,unsigned v){
+ assert(b==0x67 && h==1 && (r==4 || r==5));values[r-4]=v;writes++;
+}
+''' + functions + r'''
+int main(void){
+ rx_filter_apply();rx_filter_restore();assert(writes==0);
+ rx_filter=0;rx_filter_apply();assert(values[0]==0xc0 && values[1]==0x80);
+ rx_filter_restore();assert(values[0]==0xe3 && values[1]==0xa4);
+ rx_filter=63;rx_filter_apply();assert(values[0]==0xff && values[1]==0xbf);
+ rx_filter_restore();assert(values[0]==0xe3 && values[1]==0xa4);
+ values[0]=0xd0;values[1]=0x92;rx_filter=16;rx_filter_apply();
+ assert(values[0]==0xd0 && values[1]==0x90);rx_filter_restore();
+ assert(values[0]==0xd0 && values[1]==0x92);
+}
+''')
+
+    def test_h2_filter_preserves_high_bit_and_restores_calibration(self):
+        source=(ROOT/'main/targets/esp32h2/receiver.c').read_text()
+        functions=source[source.index('extern unsigned chip_i2c_readReg'):source.index('static size_t packed_size')]
+        self.compile_run(r'''#include <assert.h>
+void rx_recalibrate(unsigned mhz) {}
+static unsigned value=0xad,writes;
+unsigned chip_i2c_readReg(unsigned b,unsigned h,unsigned r){assert(b==0x67 && h==1 && r==0);return value;}
+void chip_i2c_writeReg(unsigned b,unsigned h,unsigned r,unsigned v){assert(b==0x67 && h==1 && r==0);value=v;writes++;}
+''' + functions + r'''
+int main(void){
+ rx_filter_apply();rx_filter_restore();assert(value==0xad && writes==0);
+ rx_filter=127;rx_filter_apply();assert(value==0xff);rx_filter_restore();assert(value==0xad);
+ rx_filter=0;rx_filter_apply();assert(value==0x80);rx_filter_restore();assert(value==0xad);
+ value=0x35;rx_filter=80;rx_filter_apply();assert(value==80);rx_filter_restore();assert(value==0x35);
+ return 0;
 }
 ''')

@@ -12,7 +12,10 @@ class ESP32Commands(unittest.TestCase):
         handler=source[source.index('extern void set_chanfreq('):source.index('void app_main(')]
         stub=r'''
 #include <assert.h>
+void rx_recalibrate(unsigned mhz) {}
 #include <stdbool.h>
+static bool burst_version_command(const char *s) { return false; }
+static bool burst_gpio_command(const char *s) { return false; }
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -20,6 +23,10 @@ class ESP32Commands(unittest.TestCase):
 #define CONFIG_IDF_TARGET_ESP32 1
 #include "rx_bandwidth.h"
 #include "rx_tuning.h"
+#include "rx_lo.h"
+unsigned ram_chip_i2c_readReg(unsigned b,unsigned h,unsigned r){return b==0x65?0x63:0xb0;}
+void ram_chip_i2c_writeReg(unsigned b,unsigned h,unsigned r,unsigned v){}
+static int pll_offset;
 #define MAX_SAMPLES 16380u
 #define RX_GAIN 0
 #define REG_READ(r) (hardware_agc?0:1u<<23)
@@ -40,8 +47,8 @@ static unsigned burst_serial_baud(void){return 2000000;}
 static void apply_gain(void){}
 static void prepare_rx(void){}
 static unsigned rtc_clk_xtal_freq_get(void){return xtal;}
-void set_chanfreq(unsigned n,unsigned mode){assert(mode==0);channel=n;pll=n;tunes++;}
-void rom_set_rf_freq_offset(unsigned c,unsigned n,int offset){assert(offset==0);crystal=c;pll=n;}
+void set_chanfreq(unsigned n,unsigned mode){assert(mode==0);channel=n;pll=n;pll_offset=0;tunes++;}
+void rom_set_rf_freq_offset(unsigned c,unsigned n,int offset){pll_offset=offset;crystal=c;pll=n;}
 static void vTaskDelay(unsigned n){}
 static bool capture(unsigned n,unsigned source,unsigned clock,unsigned format){captures++;bits=format;clock_code=clock;return true;}
 '''
@@ -56,7 +63,10 @@ int main(void){
  command("CAPS");assert(strstr(response,"TUNEEXT"));
  for(unsigned f=100;f<=6000;f++) {
    char cmd[32];snprintf(cmd,sizeof(cmd),"FREQ %u",f);command(cmd);
-   assert(!strcmp(response,"OK\n") && pll==f);
+   assert(!strcmp(response,"OK\n"));
+   unsigned khz=f*((f>=1842 && f<2210)?1200u:1000u);
+   int64_t error=((int64_t)pll*1024+pll_offset)*1000-(int64_t)khz*1024;
+   assert(error>=-500 && error<=500);
    assert(channel==(((f>=2412 && f<=2472 && (f-2412)%5==0)||f==2484)?f:2412));
  }
  command("FREQ 2413");assert(crystal==0);

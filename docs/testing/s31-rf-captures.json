@@ -1,0 +1,118 @@
+[
+  {
+    "device": "driver=espsdr,host=BOARD_IP",
+    "rate": 40000000.0,
+    "frequency": 2442000000.0,
+    "gain": 60.0,
+    "bandwidth": 0,
+    "format": "CS8",
+    "samples": 119914368,
+    "elapsed": 3.0000051369988796,
+    "throughput_msps": 39.97138755567563,
+    "overflows": 0,
+    "timeouts": 0,
+    "first_time_ns": 417058946000,
+    "last_time_ns": 420056804800,
+    "sensors": {
+      "rx_samples": "119914368",
+      "rx_missing_samples": "0",
+      "rx_queue_drops": "0",
+      "rx_invalid_packets": "0"
+    },
+    "capture": {
+      "samples": 1048992,
+      "mean_i": -0.14851495530947806,
+      "mean_q": 5.63376079131204,
+      "rms": 18.100810346234617,
+      "peak": 128.0
+    },
+    "case": "eth-plus15"
+  },
+  {
+    "device": "driver=espsdr,host=BOARD_IP",
+    "rate": 40000000.0,
+    "frequency": 2442000000.0,
+    "gain": 60.0,
+    "bandwidth": 0,
+    "format": "CS8",
+    "samples": 119921088,
+    "elapsed": 3.0000080939989857,
+    "throughput_msps": 39.973588151272686,
+    "overflows": 0,
+    "timeouts": 0,
+    "first_time_ns": 421337481000,
+    "last_time_ns": 424335507800,
+    "sensors": {
+      "rx_samples": "119921088",
+      "rx_missing_samples": "0",
+      "rx_queue_drops": "0",
+      "rx_invalid_packets": "0"
+    },
+    "capture": {
+      "samples": 1048992,
+      "mean_i": -0.13608778713279032,
+      "mean_q": 5.441566761233641,
+      "rms": 7.12176695712038,
+      "peak": 128.0
+    },
+    "case": "eth-minus15"
+  },
+  {
+    "device": "driver=espsdr,usb=1",
+    "rate": 16000000.0,
+    "frequency": 2442000000.0,
+    "gain": 60.0,
+    "bandwidth": 0,
+    "format": "CS8",
+    "samples": 47957952,
+    "elapsed": 3.001229950999914,
+    "throughput_msps": 15.979432693593486,
+    "overflows": 0,
+    "timeouts": 0,
+    "first_time_ns": 468924588000,
+    "last_time_ns": 471921960000,
+    "sensors": {
+      "rx_samples": "47957952",
+      "rx_missing_samples": "0",
+      "rx_queue_drops": "0",
+      "rx_invalid_packets": "0"
+    },
+    "capture": {
+      "samples": 1048992,
+      "mean_i": -0.12120683475183795,
+      "mean_q": 5.2674443656386325,
+      "rms": 13.973950918105265,
+      "peak": 128.0
+    },
+    "case": "usb16-plus"
+  },
+  {
+    "device": "driver=espsdr,usb=1",
+    "rate": 16000000.0,
+    "frequency": 2442000000.0,
+    "gain": 60.0,
+    "bandwidth": 0,
+    "format": "CS8",
+    "samples": 47949888,
+    "elapsed": 3.00096452499929,
+    "throughput_msps": 15.978158888769718,
+    "overflows": 0,
+    "timeouts": 0,
+    "first_time_ns": 473008833000,
+    "last_time_ns": 476005701000,
+    "sensors": {
+      "rx_samples": "47949888",
+      "rx_missing_samples": "0",
+      "rx_queue_drops": "0",
+      "rx_invalid_packets": "0"
+    },
+    "capture": {
+      "samples": 1048992,
+      "mean_i": 0.8393896235624294,
+      "mean_q": 5.486911244318355,
+      "rms": 11.785195048546976,
+      "peak": 128.0
+    },
+    "case": "usb16-minus"
+  }
+]

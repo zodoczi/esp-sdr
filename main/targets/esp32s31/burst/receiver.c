@@ -9,6 +9,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "burst_serial.h"
+#include "burst_gpio.h"
+#include "burst_version.h"
 #include "spectrum.h"
 #include "rx_tuning.h"
 #include "rx_bandwidth.h"
@@ -104,6 +106,10 @@ static void prepare_rx(void) {
     phy_pbus_xpd_tx_off();
     phy_pbus_xpd_rx_on(1);
     phy_set_rxclk_en(1);
+    /* PBUS work-mode setup releases forced RX gain. Restore the requested
+     * mode after it, including when starting an IQ capture or spectrum run. */
+    phy_rfrx_sat_rst(hardware_agc);
+    phy_force_rx_gain(!hardware_agc, hardware_agc ? 0 : gain_code);
 }
 
 /* No PHY/I2C, allocation, logging or scheduler calls inside the open gate.
@@ -308,6 +314,8 @@ static bool capture_rate(unsigned n, unsigned rate, unsigned format) {
 }
 
 static void command(const char *line) {
+    if (burst_version_command(line)) return;
+    if (burst_gpio_command(line)) return;
 #ifdef RING_PROBE
     if(ring_probe_command(line))return;
 #endif
@@ -317,7 +325,7 @@ static void command(const char *line) {
     uint64_t nonce;
     char extra;
     if (!strcmp(line, "INFO")) reply("S31SDR 6 burst 16380\n");
-    else if (!strcmp(line, "CAPS")) reply("CAPS SPEC SPECN SPECCAPS SPECSTAT DCT UARTBAUD RXLIMITS SERIALLEASE DUALSERIAL TUNEEXT RX40 LPFANA GAIN HWAGC IQ8\n");
+    else if (!strcmp(line, "CAPS")) reply("CAPS VERSION GPIO SPEC SPECN SPECCAPS SPECSTAT DCT UARTBAUD RXLIMITS SERIALLEASE DUALSERIAL TUNEEXT RX40 LPFANA GAIN HWAGC IQ8\n");
     else if (sscanf(line, "BANDWIDTH %u %c", &n, &extra)==1 &&
              (!n || (n>=RX_BANDWIDTH_MIN && n<=RX_BANDWIDTH_MAX))) {
         rx_filter=rx_bandwidth_dcap(n); reply("OK\n");
@@ -340,7 +348,16 @@ static void command(const char *line) {
         hardware_agc = false; gain_code = n; apply_gain(); reply("OK\n");
     } else if (sscanf(line, "FREQ %u %c", &n, &extra) == 1 && rx_frequency_valid(n)) {
         frequency_mhz=n;
+        phy_set_txclk_en(1);
+        burst_gain_mirror(-1);
+        phy_set_txclk_en(0);
+        REG_WRITE(0x20107094, gain_init);
+        REG_WRITE(0x2010713c, gain_threshold);
         s31_tune(n);
+        gain_init = REG_READ(0x20107094);
+        gain_threshold = REG_READ(0x2010713c);
+        gain_max = (REG_READ(RX_GAIN) >> 8) & 127;
+        if (gain_code > gain_max) gain_code = gain_max;
         prepare_rx(); apply_gain(); reply("OK\n");
     } else if (sscanf(line, "CAP16 %u %u %c", &n, &rate, &extra) == 2) capture_rate(n, rate, 8);
     else if (sscanf(line, "CAP20 %u %u %c", &n, &rate, &extra) == 2) capture_rate(n, rate, 10);
