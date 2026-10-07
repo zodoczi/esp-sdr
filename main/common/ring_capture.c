@@ -342,7 +342,9 @@ static float accum_buf[1][RING_SPEC_NFFT_MAX];
 #endif
 static float *accum = accum_buf[0];
 static uint16_t bin_of[RING_SPEC_NFFT_MAX]; /* FFT output slot -> natural-order bin */
-static uint8_t frame_out[sizeof(spec_header_t) + RING_SPEC_NFFT_MAX + 4];
+/* From the heap (ring_capture_init): BSS must end below the RF ring (sram_guard.ld) */
+#define FRAME_OUT_SIZE (sizeof(spec_header_t) + RING_SPEC_NFFT_MAX + 4)
+static uint8_t *frame_out;
 static unsigned spec_n, spec_log2;        /* FFT size of the current run */
 
 static void log_tables_init(void);
@@ -352,6 +354,7 @@ static void c1_start(void);
 static bool dsp_ready;
 void ring_capture_init(void) {
     if (dsp_ready) return;
+    if (!frame_out) frame_out = heap_caps_malloc(FRAME_OUT_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 #if !CONFIG_IDF_TARGET_ESP32S3
     dsp_ready = spectrum_fft_init();
     log_tables_init();
