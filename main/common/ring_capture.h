@@ -63,6 +63,10 @@ typedef struct {
     unsigned iq_bits;          /* IQ: 4, 8 or 16 bits per component */
     unsigned iq_shift;         /* IQ: rounding right shift of the FIR output (10-bit sample * 32) */
     bool iq_rot;               /* IQ: shift by +fs/4 before the FIR (LO tuned fs/4 below) */
+    /* IQ: in-stream retune. When set, a host line "T <mhz> <khz>" received during the
+     * run calls it (between ring polls, core 0) instead of ending the run; any other
+     * input still stops. NULL: any input stops (the original protocol). */
+    void (*retune)(unsigned mhz, int khz);
 } ring_config_t;
 
 typedef struct {
@@ -79,6 +83,8 @@ typedef struct {
     uint32_t work_max;   /* longest single processing slice, CPU cycles */
     uint32_t frames, drops, abandoned, ffts;
     bool stopped_by_host;
+    uint32_t retunes;    /* IQ: in-stream retunes applied */
+    uint32_t retune_max; /* IQ: longest retune, CPU cycles */
     ring_unit_t cap[RING_BANKS];
 } ring_result_t;
 

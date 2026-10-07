@@ -30,6 +30,7 @@
 #include "sdkconfig.h"
 
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 #include <stddef.h>
 
@@ -265,6 +266,35 @@ RING_HOT static void txq_pump(void) {
     if (n > 64) n = 64;
     int written = ring_write(txq + off,n);
     if (written > 0) txq_tail += (uint32_t)written;
+}
+
+/* In-stream retune line ("T <mhz> <khz>\n"), collected across polls: a USB packet may
+ * split it. Returns false when the input is not a retune line (the caller stops the run;
+ * host_input() consumes the rest of that line afterwards). */
+static char retune_line[32];
+static unsigned retune_len;
+RING_HOT static bool retune_input(const ring_config_t *cfg, ring_result_t *r) {
+    uint8_t b;
+    for (unsigned k = 0; k < 32 && ring_input_available(); k++) {
+        if (ring_read_byte(&b) != 1) break;
+        if (!retune_len && b != 'T') return false;
+        if (b != '\n') {
+            if (retune_len >= sizeof(retune_line) - 1) { retune_len = 0; return false; }
+            retune_line[retune_len++] = (char)b;
+            continue;
+        }
+        retune_line[retune_len] = 0;
+        retune_len = 0;
+        unsigned mhz; int khz;
+        if (sscanf(retune_line, "T %u %d", &mhz, &khz) == 2) {
+            uint32_t t0 = esp_cpu_get_cycle_count();
+            cfg->retune(mhz, khz);
+            uint32_t dt = esp_cpu_get_cycle_count() - t0;
+            r->retunes++;
+            if (dt > r->retune_max) r->retune_max = dt;
+        }
+    }
+    return true;
 }
 
 RING_HOT static bool host_input(void) {
@@ -1338,6 +1368,7 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
     st.cfg = cfg;
     st.res = r;
     txq_head = txq_tail = 0;
+    retune_len = 0;
     const bool spec = cfg->mode == RING_MODE_SPEC;
     const bool capture = cfg->mode == RING_MODE_CAPTURE;
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -1537,7 +1568,8 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
                     stop = true;
                     r->stopped_by_host = true;
                 }
-                if (!stop && !capture && ring_input_available()) {
+                if (!stop && !capture && ring_input_available() &&
+                    !(cfg->retune && retune_input(cfg, r))) {
                     stop = true;
                     r->stopped_by_host = true;
                 }

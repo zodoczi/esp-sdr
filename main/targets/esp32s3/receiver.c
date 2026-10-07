@@ -202,14 +202,28 @@ static bool capture(unsigned n,unsigned divider,unsigned format) {
 
 /* Continuous modes (ring_capture.c). Reports end with one text line:
  * <TAG> status detail units pairs elapsed_us late_max work_max_cycles
- *       frames drops abandoned ffts stopped_by_host */
+ *       frames drops abandoned ffts stopped_by_host retunes retune_max_cycles */
 static void ring_report(const char *tag,const ring_result_t *r) {
-    char h[224];
+    char h[256];
     snprintf(h,sizeof(h),"%s %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu64 " %" PRIu64 " %" PRIu32
-             " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %u\n",tag,r->status,r->detail,
+             " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %u %" PRIu32 " %" PRIu32 "\n",tag,r->status,r->detail,
              r->units,r->pairs,r->elapsed_us,r->late_max,r->work_max,r->frames,r->drops,r->abandoned,
-             r->ffts,(unsigned)r->stopped_by_host);
+             r->ffts,(unsigned)r->stopped_by_host,r->retunes,r->retune_max);
     reply(h);
+}
+
+/* In-stream retune for IQS ("T <mhz> <khz>" while streaming, see ring_capture.h):
+ * PLL only. No DC recalibration and no Wi-Fi channel path, both too slow for the
+ * ring; the IQS fs/4 mode keeps DC out of the band anyway. The LO divider plan
+ * (rx_lo_plan) is honoured, so the alternate 1842-2209 MHz range works too. */
+static void s3_retune_inline(unsigned mhz,int khz) {
+    if(mhz<S3_FREQ_MIN || mhz>S3_FREQ_MAX || khz<0 || khz>999) return;
+    rx_lo_plan_t plan=rx_lo_plan(mhz);
+    rx_lo_plan_t old=rx_lo_plan(frequency_mhz);
+    set_rf_freq_offset(0,plan.mhz,plan.offset_khz+khz);
+    if(plan.alternate!=old.alternate) rx_lo_select(plan.alternate);
+    frequency_mhz=mhz;
+    s3_fofs=khz;
 }
 /* RINGCAP payload: "RINGDATA units rate_hz n0 n1 n2 crc32\n", then the units'
  * raw 32-bit IQ words back to back (gapless), then the RINGCAP report. */
@@ -301,6 +315,7 @@ static bool ring_command(const char *line) {
         if(rate!=0 && rate!=1 && rate!=6){reply("ERR rate\n");return true;}
         if(!usb){reply("ERR transport\n");return true;}
         c.mode=RING_MODE_IQ;c.rate=rate;c.duration_ms=ms;c.iq_dec=stride;c.iq_bits=nfft;c.iq_shift=upf;c.iq_rot=mode==2;tag="IQSEND";
+        c.retune=s3_retune_inline;
         char h[96];
         snprintf(h,sizeof(h),"IQS %u %u %u %u %u %u\n",ring_capture_rate_hz(rate),stride,nfft,upf,mode,frequency_mhz);
         reply(h);
@@ -356,7 +371,7 @@ static void handle_command(char *line) {
 #if CONFIG_ESP_SDR_UART_ENABLED
                   "DUALSERIAL "
 #endif
-                  "TUNEEXT RX40 RX16 LPFANA GAIN HWAGC IQ8 RING SPEC SPECN SPECCAPS SPECSTAT DCT\n");
+                  "TUNEEXT RX40 RX16 LPFANA GAIN HWAGC IQ8 RING SPEC SPECN SPECCAPS SPECSTAT DCT IQS IQTUNE\n");
         }
         else if(sscanf(line,"BANDWIDTH %u %c",&n,&extra)==1 && (!n || (n>=RX_BANDWIDTH_MIN && n<=RX_BANDWIDTH_MAX))) {
             rx_filter=rx_bandwidth_dcap(n);reply("OK\n");
@@ -387,6 +402,32 @@ static void handle_command(char *line) {
             frequency_mhz=n;rx_ready=false;prepare_rx();reply("OK\n");
         }
 #endif
+        else if(!strncmp(line,"TUNEBENCH ",10)) {
+            /* TUNEBENCH <mhz> <khz>: time the tuning steps (CPU cycles at 240 MHz) for
+             * the in-stream retune budget, then restore the previous tuning. */
+            unsigned m=0;int k=0;
+            if(sscanf(line,"TUNEBENCH %u %d",&m,&k)!=2||m<S3_FREQ_MIN||m>S3_FREQ_MAX||k<0||k>999){reply("ERR args\n");}
+            else {
+                prepare_rx();
+                rx_lo_plan_t plan=rx_lo_plan(m);
+                uint32_t t0=esp_cpu_get_cycle_count();
+                set_rf_freq_offset(0,plan.mhz,plan.offset_khz+k);
+                uint32_t t1=esp_cpu_get_cycle_count();
+                set_rf_freq_offset(0,plan.mhz,plan.offset_khz+(k+1)%1000);
+                uint32_t t2=esp_cpu_get_cycle_count();
+                set_chanfreq(2412,0);
+                uint32_t t3=esp_cpu_get_cycle_count();
+                s3_retune_inline(m,k);
+                uint32_t t4=esp_cpu_get_cycle_count();
+                rx_recalibrate(m);
+                uint32_t t5=esp_cpu_get_cycle_count();
+                char h[160];
+                snprintf(h,sizeof(h),"TUNEBENCH offset %" PRIu32 " offset2 %" PRIu32 " chanfreq %" PRIu32 " inline %" PRIu32 " recal %" PRIu32 " cycles\n",
+                         t1-t0,t2-t1,t3-t2,t4-t3,t5-t4);
+                reply(h);
+                rx_ready=false;prepare_rx();
+            }
+        }
         else if(!strcmp(line,"RANGE?")) {
             char answer[64];snprintf(answer,sizeof(answer),"RANGE %u %u 1\n",S3_FREQ_MIN,S3_FREQ_MAX);reply(answer);
         }
