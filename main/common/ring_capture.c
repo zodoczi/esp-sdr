@@ -273,6 +273,14 @@ RING_HOT static void txq_pump(void) {
  * host_input() consumes the rest of that line afterwards). */
 static char retune_line[32];
 static unsigned retune_len;
+/* In-stream retune on core 1 (IQS, dual core): core 0 posts the request, core 1 does the
+ * ~0.7 ms PLL write between units, so the ring never stops (measured: ~2 % of the samples
+ * lost at 30 retunes/s). DISABLED: after a PLL write on core 1 the run hangs when it ends
+ * (no report, firmware stuck; a no-op retune on core 1 is fine). Until that is understood
+ * every retune ends the run and the caller restarts it (~9 ms gap per retune). */
+#define RING_RETUNE_ON_CORE1 0
+static volatile struct { uint32_t req, done, mhz; int32_t khz; uint32_t count, max; } c1rt;
+static bool rt_core1;
 RING_HOT static bool retune_input(const ring_config_t *cfg, ring_result_t *r) {
     uint8_t b;
     for (unsigned k = 0; k < 32 && ring_input_available(); k++) {
@@ -287,11 +295,21 @@ RING_HOT static bool retune_input(const ring_config_t *cfg, ring_result_t *r) {
         retune_len = 0;
         unsigned mhz; int khz;
         if (sscanf(retune_line, "T %u %d", &mhz, &khz) == 2) {
-            uint32_t t0 = esp_cpu_get_cycle_count();
-            cfg->retune(mhz, khz);
-            uint32_t dt = esp_cpu_get_cycle_count() - t0;
-            r->retunes++;
-            if (dt > r->retune_max) r->retune_max = dt;
+            (void)cfg;
+            if (rt_core1) {   /* core 1 retunes between units; the ring goes on */
+                c1rt.mhz = mhz;
+                c1rt.khz = khz;
+                __asm__ volatile("memw" ::: "memory");
+                c1rt.req = c1rt.req + 1u;
+                return true;
+            }
+            /* Single core: the PLL write (~170 k cycles) does not fit between ring polls.
+             * End the run; the caller retunes and continues the stream. Leave any further
+             * input for the next run. */
+            r->retune_req = true;
+            r->retune_mhz = mhz;
+            r->retune_khz = khz;
+            return true;
         }
     }
     return true;
@@ -1304,6 +1322,21 @@ IRAM_ATTR void s3_core1_main(void) {
         uint32_t taken = 0;
         for (;;) {
             MEMW();
+            if (c1rt.req != c1rt.done) {   /* in-stream retune posted by core 0 */
+                uint32_t req = c1rt.req;
+                MEMW();
+                uint32_t t0 = esp_cpu_get_cycle_count();
+                /* The PHY code may leave interrupts enabled on this core (critical
+                 * section exit): core 1 must stay masked, restore the level afterwards */
+                unsigned lvl = portSET_INTERRUPT_MASK_FROM_ISR();
+                st.cfg->retune(c1rt.mhz, c1rt.khz);
+                portCLEAR_INTERRUPT_MASK_FROM_ISR(lvl);
+                uint32_t dt = esp_cpu_get_cycle_count() - t0;
+                c1rt.count = c1rt.count + 1u;
+                if (dt > c1rt.max) c1rt.max = dt;
+                MEMW();
+                c1rt.done = req;
+            }
             if (taken == c1.posted) {
                 c1_encode_step();
                 if (!c1.end) continue;
@@ -1371,7 +1404,7 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
     st.cfg = cfg;
     st.res = r;
     txq_head = txq_tail = 0;
-    retune_len = 0;
+    if (!cfg->iq_continue) retune_len = 0;   /* a T line split across runs stays whole */
     const bool spec = cfg->mode == RING_MODE_SPEC;
     const bool capture = cfg->mode == RING_MODE_CAPTURE;
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -1382,7 +1415,15 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
         if (d < 64u || d > 1024u || (1u << l) != d || (cfg->iq_bits != 4 && cfg->iq_bits != 8 && cfg->iq_bits != 16) || cfg->iq_shift > 24) {
             fail(r, RING_FAIL_ARG, 2); return;
         }
+        /* After a retune the stream goes on: same frame / sample numbering, gap flagged */
+        const uint64_t keep_out = iqs.out_index;
+        const uint32_t keep_frame = iqs.frame;
         memset(&iqs, 0, offsetof(typeof(iqs), out));
+        if (cfg->iq_continue) {
+            iqs.out_index = iqs.frame_index = keep_out;
+            iqs.frame = keep_frame;
+            iqs.flags = 1;
+        }
         iqs.dec = d; iqs.log2d = l; iqs.bits = cfg->iq_bits; iqs.shift = cfg->iq_shift;
         fir_rot = cfg->iq_rot;
         iqs.next_pair = ~0ull;
@@ -1485,6 +1526,8 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
     sx.mode = (uint16_t)((dual ? 1 : 0) | (dual && ring_capture_assist ? 2 : 0));
     uint32_t c1_seq = 0, c0_lost = 0, tail_seen = 0;
     uint32_t c0_cost = assist_cost + assist_cost / 3u; /* warm-up FFT + margin; grows to the max seen */
+    rt_core1 = RING_RETUNE_ON_CORE1 && dual && iq && cfg->retune;
+    c1rt.req = c1rt.done = c1rt.count = c1rt.max = 0;
     if (dual) { /* hand the run to core 1 (idle since its last run) */
         c1.posted = c1.taken = c1.end = c1.done = c1.busy = c1.block_max = 0;
         cl.seq = cl.c0_seq = cl.hb_full = cl.c0_blocks = 0;
@@ -1576,6 +1619,7 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
                     stop = true;
                     r->stopped_by_host = true;
                 }
+                if (!stop && r->retune_req) stop = true;   /* retune between runs */
                 continue;
             }
             /* Prepare the next bank as soon as its old unit is retired, and
@@ -1764,7 +1808,9 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
     REG_WRITE(DUMP_BANK_SELECT_REG, bank_sel_saved);
     r->elapsed_us = (uint64_t)(esp_timer_get_time() - t_start);
     r->pairs = index;
-    (void)host_input(); /* consume the stop request so the parser never sees it */
+    /* consume the stop request so the parser never sees it (a retune leaves the
+     * input alone: the next run reads it) */
+    if (!r->retune_req) (void)host_input();
 #if !CONFIG_IDF_TARGET_ESP32S3
     if (spec) {
         while(scalar_work())txq_pump();
@@ -1776,6 +1822,16 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
         MEMW();
         while (!c1.done) txq_pump();
         MEMW();
+        if (rt_core1) {
+            if (c1rt.req != c1rt.done) {   /* posted after core 1's last check: apply it here */
+                cfg->retune(c1rt.mhz, c1rt.khz);
+                c1rt.count = c1rt.count + 1u;
+                c1rt.done = c1rt.req;
+            }
+            r->retunes = c1rt.count;
+            r->retune_max = c1rt.max;
+            rt_core1 = false;
+        }
         r->abandoned += c0_lost;
         r->work_max = c1.block_max; /* longest core-1 block (unpack..accumulate) */
         ring_capture_c0_blocks = cl.c0_blocks;

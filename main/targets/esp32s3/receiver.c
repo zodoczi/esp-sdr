@@ -323,7 +323,22 @@ static bool ring_command(const char *line) {
     ring_result_t r;
     prepare_rx();
     rx_filter_apply();
-    ring_capture_run(&c,&r);
+    /* IQS with in-stream retune: a "T" line ends the run, the PLL is retuned here
+     * (~0.7 ms, too long for the ring), and the stream continues in a new run with
+     * the same frame / sample numbering (gap flagged). */
+    uint32_t retunes=0,retune_max=0;
+    for(;;) {
+        ring_capture_run(&c,&r);
+        if(c.mode!=RING_MODE_IQ || !r.retune_req || r.status) break;
+        uint32_t t0=esp_cpu_get_cycle_count();
+        s3_retune_inline(r.retune_mhz,r.retune_khz);
+        uint32_t dt=esp_cpu_get_cycle_count()-t0;
+        retunes++;
+        if(dt>retune_max)retune_max=dt;
+        c.iq_continue=true;
+    }
+    r.retunes+=retunes;   /* core-1 retunes (dual) are already counted by the run */
+    if(retune_max>r.retune_max)r.retune_max=retune_max;
     rx_filter_restore();
     if(c.mode==RING_MODE_CAPTURE && !r.status)ring_send_capture(&r,rate);
     ring_report(tag,&r);

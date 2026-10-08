@@ -64,9 +64,14 @@ typedef struct {
     unsigned iq_shift;         /* IQ: rounding right shift of the FIR output (10-bit sample * 32) */
     bool iq_rot;               /* IQ: shift by +fs/4 before the FIR (LO tuned fs/4 below) */
     /* IQ: in-stream retune. When set, a host line "T <mhz> <khz>" received during the
-     * run calls it (between ring polls, core 0) instead of ending the run; any other
-     * input still stops. NULL: any input stops (the original protocol). */
+     * run ends it with retune_req set in the result (the PLL write takes ~0.7 ms, longer
+     * than one ring lap at 16 MS/s, so it cannot run between ring polls); the caller
+     * retunes and starts the next run with iq_continue. Any other input still stops.
+     * NULL: any input stops (the original protocol). */
     void (*retune)(unsigned mhz, int khz);
+    /* IQ: continue the previous run's IQS1 frame and sample counters (after a retune),
+     * so the host sees one stream with a gap flag instead of a new one */
+    bool iq_continue;
 } ring_config_t;
 
 typedef struct {
@@ -83,8 +88,11 @@ typedef struct {
     uint32_t work_max;   /* longest single processing slice, CPU cycles */
     uint32_t frames, drops, abandoned, ffts;
     bool stopped_by_host;
-    uint32_t retunes;    /* IQ: in-stream retunes applied */
-    uint32_t retune_max; /* IQ: longest retune, CPU cycles */
+    uint32_t retunes;    /* IQ: in-stream retunes applied (filled in by the caller) */
+    uint32_t retune_max; /* IQ: longest retune, CPU cycles (filled in by the caller) */
+    bool retune_req;     /* IQ: the run ended for a "T" line: retune to retune_mhz / _khz */
+    unsigned retune_mhz;
+    int retune_khz;
     ring_unit_t cap[RING_BANKS];
 } ring_result_t;
 
