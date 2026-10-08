@@ -28,9 +28,6 @@
 #include "spectrum.h"
 #include "spectrum_stats.h"
 #include "sdkconfig.h"
-#if CONFIG_IDF_TARGET_ESP32S3
-#include "hal/cache_ll.h"
-#endif
 
 #include <math.h>
 #include <stdio.h>
@@ -387,28 +384,49 @@ static void accum_clear(void) {
 #if CONFIG_IDF_TARGET_ESP32S3
 static int16_t *hbuf; /* core-1 work buffer, defined with the core-1 code below */
 #endif
+static void spec_buffers_free(void) {
+    heap_caps_free(window_q15); window_q15 = NULL;
+    heap_caps_free(bin_of); bin_of = NULL;
+    for (unsigned b = 0; b < ACCUM_BUFS; b++) { heap_caps_free(accum_buf[b]); accum_buf[b] = NULL; }
+#if CONFIG_IDF_TARGET_ESP32S3
+    heap_caps_free(hbuf); hbuf = NULL;
+    heap_caps_free(win2); win2 = NULL;
+#endif
+    heap_caps_free(fft_buf); fft_buf = NULL;
+}
+/* Internal SRAM is fragmented (largest block ~16 KB with the RF ring in place), so the
+ * order matters: the hot FFT buffers first, the window may fall back to PSRAM. */
+static bool spec_buffers_alloc(unsigned n) {
+    nfft_max = n;
+#if CONFIG_IDF_TARGET_ESP32S3
+    hbuf = heap_caps_aligned_alloc(16, 2 * n * sizeof(int16_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT); /* core 1 */
+#endif
+    fft_buf = alloc_internal(2 * n * sizeof(int16_t));
+#if CONFIG_IDF_TARGET_ESP32S3
+    win2 = alloc_internal(2 * n * sizeof(int16_t));
+    if (!win2) win2 = alloc_bulk(2 * n * sizeof(int16_t));
+#endif
+    window_q15 = alloc_bulk(n * sizeof(int16_t));
+    bin_of = alloc_bulk(n * sizeof(uint16_t));
+    for (unsigned b = 0; b < ACCUM_BUFS; b++) accum_buf[b] = alloc_bulk(n * sizeof(float));
+    bool ok = fft_buf && window_q15 && bin_of;
+    for (unsigned b = 0; b < ACCUM_BUFS; b++) ok = ok && accum_buf[b];
+#if CONFIG_IDF_TARGET_ESP32S3
+    ok = ok && win2; /* hbuf is optional: without it SPEC runs on core 0 only */
+#endif
+    if (!ok) spec_buffers_free();
+    return ok;
+}
 static bool spec_buffers_init(void) {
     if (fft_buf) return true;
-#if CONFIG_IDF_TARGET_ESP32S3
-    nfft_max = RING_SPEC_NFFT_INTERNAL;
-#if CONFIG_SPIRAM
-    if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) >= 256u * 1024u) nfft_max = RING_SPEC_NFFT_MAX;
+#if CONFIG_IDF_TARGET_ESP32S3 && CONFIG_SPIRAM
+    if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) >= 256u * 1024u && spec_buffers_alloc(RING_SPEC_NFFT_MAX)) { accum_clear(); return true; }
 #endif
+#if CONFIG_IDF_TARGET_ESP32S3
+    if (!spec_buffers_alloc(RING_SPEC_NFFT_INTERNAL)) return false;
 #else
-    nfft_max = RING_SPEC_NFFT_MAX;
+    if (!spec_buffers_alloc(RING_SPEC_NFFT_MAX)) return false;
 #endif
-    window_q15 = alloc_bulk(nfft_max * sizeof(int16_t));
-    bin_of = alloc_bulk(nfft_max * sizeof(uint16_t));
-    for (unsigned b = 0; b < ACCUM_BUFS; b++) accum_buf[b] = alloc_bulk(nfft_max * sizeof(float));
-#if CONFIG_IDF_TARGET_ESP32S3
-    /* core-1 buffer first: it must be DMA-capable internal RAM and needs a contiguous block */
-    hbuf = heap_caps_aligned_alloc(16, 2 * nfft_max * sizeof(int16_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
-    win2 = alloc_internal(2 * nfft_max * sizeof(int16_t));
-    if (!win2) return false;
-#endif
-    fft_buf = alloc_internal(2 * nfft_max * sizeof(int16_t));
-    for (unsigned b = 0; b < ACCUM_BUFS; b++) if (!accum_buf[b]) return false;
-    if (!window_q15 || !bin_of || !fft_buf) return false;
     accum_clear();
     return true;
 }
@@ -1057,7 +1075,7 @@ extern void s3_core1_entry(void);
 bool ring_capture_dual_active(void) { return c1_ok && c1_enabled; }
 bool ring_capture_assist = true;      /* core 0 helps core 1 (DUAL 2 = without) */
 uint32_t ring_capture_c0_blocks;      /* blocks core 0 handed off in the last run */
-bool ring_capture_core1_alive(void) { return c1_ok ? 1 : (hbuf ? 2 : 0); }
+bool ring_capture_core1_alive(void) { return c1_ok; }
 void ring_capture_set_dual(bool on) { c1_enabled = on; }
 
 IRAM_ATTR static bool c1_txq_push(const uint8_t *d, uint32_t n) {
@@ -1418,13 +1436,12 @@ static inline void c1_revoke(unsigned b) {
 }
 
 static void c1_start(void) {
-    if (!hbuf) hbuf = heap_caps_aligned_alloc(16, 2 * nfft_max * sizeof(int16_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
-    if (!hbuf) return; /* no second core: single-core SPEC */
+    if (!hbuf) return; /* allocated with the SPEC buffers; without it SPEC runs on core 0 only */
     cpu_utility_ll_unstall_cpu(1);
     cpu_utility_ll_enable_clock_and_reset_app_cpu();
     ets_set_appcpu_boot_addr((uint32_t)s3_core1_entry);
     int64_t t0 = esp_timer_get_time();
-    while (!c1.alive && esp_timer_get_time() - t0 < 1000000) {
+    while (!c1.alive && esp_timer_get_time() - t0 < 50000) {
     }
     c1_ok = c1.alive != 0;
 }
