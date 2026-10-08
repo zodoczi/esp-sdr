@@ -28,6 +28,9 @@
 #include "spectrum.h"
 #include "spectrum_stats.h"
 #include "sdkconfig.h"
+#if CONFIG_IDF_TARGET_ESP32S3
+#include "hal/cache_ll.h"
+#endif
 
 #include <math.h>
 #include <stdio.h>
@@ -344,24 +347,72 @@ typedef struct __attribute__((packed)) {
 } spec_header_t;
 _Static_assert(sizeof(spec_header_t) == 28, "SPEC header layout");
 
-static int16_t window_q15[RING_SPEC_NFFT_MAX];
+/* SPEC buffers come from the heap (ring_capture_init): BSS must end below the RF ring
+ * (sram_guard.ld). The large, rarely touched ones (window, bin map, accumulators) go to
+ * PSRAM when the board has it, which is what makes 4096 bins fit. */
+static int16_t *window_q15;
 #if CONFIG_IDF_TARGET_ESP32S3
 /* Window with each coefficient twice (I and Q lanes) for the PIE unpack. */
-static int16_t win2[2 * RING_SPEC_NFFT_MAX] __attribute__((aligned(16)));
+static int16_t *win2; /* 2 * nfft_max, internal, 16-byte aligned */
 void s3_unpack_iq10_win(const uint32_t *src, int16_t *dst, const int16_t *win2, unsigned groups8);
 #endif
-static int16_t fft_buf[2 * RING_SPEC_NFFT_MAX] __attribute__((aligned(16)));
+static int16_t *fft_buf; /* 2 * nfft_max, internal, 16-byte aligned */
 /* Indexed by FFT output slot (bit-reversed order); emit maps slot -> bin.
  * mean: float power sum; max-hold: uint32 power per FFT slot (same storage). */
 #if CONFIG_IDF_TARGET_ESP32S3
-static float accum_buf[2][RING_SPEC_NFFT_MAX]; /* double buffer: core 1 encodes one while filling the other */
+#define ACCUM_BUFS 2 /* double buffer: core 1 encodes one while filling the other */
 #else
-static float accum_buf[1][RING_SPEC_NFFT_MAX];
+#define ACCUM_BUFS 1
 #endif
-static float *accum = accum_buf[0];
-static uint16_t bin_of[RING_SPEC_NFFT_MAX]; /* FFT output slot -> natural-order bin */
-/* From the heap (ring_capture_init): BSS must end below the RF ring (sram_guard.ld) */
-#define FRAME_OUT_SIZE (sizeof(spec_header_t) + RING_SPEC_NFFT_MAX + 4)
+static float *accum_buf[ACCUM_BUFS];
+static float *accum;
+static uint16_t *bin_of; /* FFT output slot -> natural-order bin */
+static unsigned nfft_max;
+#define FRAME_OUT_SIZE (sizeof(spec_header_t) + nfft_max + 4)
+
+static void *alloc_internal(size_t n) { return heap_caps_aligned_alloc(16, n, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT); }
+static void *alloc_bulk(size_t n) {
+#if CONFIG_SPIRAM
+    if (nfft_max > RING_SPEC_NFFT_INTERNAL) {
+        void *p = heap_caps_aligned_alloc(16, n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (p) return p;
+    }
+#endif
+    return alloc_internal(n);
+}
+static void accum_clear(void) {
+    for (unsigned b = 0; b < ACCUM_BUFS; b++) memset(accum_buf[b], 0, nfft_max * sizeof(float));
+    accum = accum_buf[0];
+}
+#if CONFIG_IDF_TARGET_ESP32S3
+static int16_t *hbuf; /* core-1 work buffer, defined with the core-1 code below */
+#endif
+static bool spec_buffers_init(void) {
+    if (fft_buf) return true;
+#if CONFIG_IDF_TARGET_ESP32S3
+    nfft_max = RING_SPEC_NFFT_INTERNAL;
+#if CONFIG_SPIRAM
+    if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) >= 256u * 1024u) nfft_max = RING_SPEC_NFFT_MAX;
+#endif
+#else
+    nfft_max = RING_SPEC_NFFT_MAX;
+#endif
+    window_q15 = alloc_bulk(nfft_max * sizeof(int16_t));
+    bin_of = alloc_bulk(nfft_max * sizeof(uint16_t));
+    for (unsigned b = 0; b < ACCUM_BUFS; b++) accum_buf[b] = alloc_bulk(nfft_max * sizeof(float));
+#if CONFIG_IDF_TARGET_ESP32S3
+    /* core-1 buffer first: it must be DMA-capable internal RAM and needs a contiguous block */
+    hbuf = heap_caps_aligned_alloc(16, 2 * nfft_max * sizeof(int16_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+    win2 = alloc_internal(2 * nfft_max * sizeof(int16_t));
+    if (!win2) return false;
+#endif
+    fft_buf = alloc_internal(2 * nfft_max * sizeof(int16_t));
+    for (unsigned b = 0; b < ACCUM_BUFS; b++) if (!accum_buf[b]) return false;
+    if (!window_q15 || !bin_of || !fft_buf) return false;
+    accum_clear();
+    return true;
+}
+unsigned ring_capture_nfft_max(void) { return nfft_max; }
 static uint8_t *frame_out;
 static unsigned spec_n, spec_log2;        /* FFT size of the current run */
 
@@ -372,21 +423,23 @@ static void c1_start(void);
 static bool dsp_ready;
 void ring_capture_init(void) {
     if (dsp_ready) return;
+    if (!spec_buffers_init()) return;
     if (!frame_out) frame_out = heap_caps_malloc(FRAME_OUT_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (!frame_out) return;
 #if !CONFIG_IDF_TARGET_ESP32S3
     dsp_ready = spectrum_fft_init();
     log_tables_init();
 #else
     /* twiddles from the heap: BSS must end below the RF ring (sram_guard.ld) */
     static int16_t *twiddles;
-    if(!twiddles)twiddles=heap_caps_aligned_alloc(16,RING_SPEC_NFFT_MAX*sizeof(int16_t),MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT);
-    dsp_ready = twiddles && dsps_fft2r_init_sc16(twiddles,RING_SPEC_NFFT_MAX)==ESP_OK;
+    if(!twiddles)twiddles=heap_caps_aligned_alloc(16,nfft_max*sizeof(int16_t),MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT);
+    dsp_ready = twiddles && dsps_fft2r_init_sc16(twiddles,nfft_max)==ESP_OK;
     log_tables_init();
     if(dsp_ready)c1_start();
 #endif
 }
 
-bool ring_capture_valid_nfft(unsigned n) { return n <= RING_SPEC_NFFT_MAX && (n >= 256 && !(n & (n - 1))); }
+bool ring_capture_valid_nfft(unsigned n) { return n <= nfft_max && (n >= 256 && !(n & (n - 1))); }
 
 /* Hann window and bit-reversal bin map for FFT size n; outside the timed run.
  * Scaling is independent of n: IQ10 << 6 in, the int16 FFT divides by n. */
@@ -1004,7 +1057,7 @@ extern void s3_core1_entry(void);
 bool ring_capture_dual_active(void) { return c1_ok && c1_enabled; }
 bool ring_capture_assist = true;      /* core 0 helps core 1 (DUAL 2 = without) */
 uint32_t ring_capture_c0_blocks;      /* blocks core 0 handed off in the last run */
-bool ring_capture_core1_alive(void) { return c1_ok; }
+bool ring_capture_core1_alive(void) { return c1_ok ? 1 : (hbuf ? 2 : 0); }
 void ring_capture_set_dual(bool on) { c1_enabled = on; }
 
 IRAM_ATTR static bool c1_txq_push(const uint8_t *d, uint32_t n) {
@@ -1154,7 +1207,7 @@ static volatile struct {
     uint32_t done;       /* blocks accumulated for the open unit */
     uint32_t c0_blocks;  /* blocks core 0 handed off (whole run) */
 } cl;
-static int16_t *hbuf; /* 8 KB, heap: BSS must end below the RF ring */
+static int16_t *hbuf; /* 4 * nfft_max bytes, heap: BSS must end below the RF ring */
 
 IRAM_ATTR static bool claim_block(uint32_t *out) {
     for (;;) {
@@ -1365,13 +1418,13 @@ static inline void c1_revoke(unsigned b) {
 }
 
 static void c1_start(void) {
-    hbuf = heap_caps_aligned_alloc(16, 2 * RING_SPEC_NFFT_MAX * sizeof(int16_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+    if (!hbuf) hbuf = heap_caps_aligned_alloc(16, 2 * nfft_max * sizeof(int16_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
     if (!hbuf) return; /* no second core: single-core SPEC */
     cpu_utility_ll_unstall_cpu(1);
     cpu_utility_ll_enable_clock_and_reset_app_cpu();
     ets_set_appcpu_boot_addr((uint32_t)s3_core1_entry);
     int64_t t0 = esp_timer_get_time();
-    while (!c1.alive && esp_timer_get_time() - t0 < 50000) {
+    while (!c1.alive && esp_timer_get_time() - t0 < 1000000) {
     }
     c1_ok = c1.alive != 0;
 }
@@ -1453,8 +1506,7 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
 #if !CONFIG_IDF_TARGET_ESP32S3
     spectrum_stats_init(&scalar_stats);
 #endif
-    memset(accum_buf, 0, sizeof(accum_buf));
-    accum = accum_buf[0];
+    accum_clear();
 #if CONFIG_IDF_TARGET_ESP32S3
     c1enc.pending = 0;
 #endif
@@ -1511,8 +1563,7 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
         spec_accumulate(false, 0, CHUNK < spec_n ? CHUNK : spec_n);
         uint32_t elapsed = esp_cpu_get_cycle_count() - start;
         if (elapsed > longest) longest = elapsed;
-        memset(accum_buf, 0, sizeof(accum_buf));
-        accum = accum_buf[0];
+        accum_clear();
         c1enc.pending = 0;
         /* Seed the slice budget with the longest processing stage of this size, so the
          * first slices are gated correctly (+15 % for cache/bus variation). */

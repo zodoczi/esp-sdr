@@ -263,13 +263,23 @@ static bool ring_command(const char *line) {
     if(!strcmp(line,"SPECINFO?")) {
         /* Worker profiles include 512 bins; retain the staged fallback when
          * the worker is unavailable or explicitly disabled. */
+        /* 4096 bins only with PSRAM (ring_capture_nfft_max) */
+        bool big=ring_capture_nfft_max()>=4096;
         if(ring_capture_dual_active())
-            reply("SPECINFO {\"continuous\":true,\"transports\":[\"USB\"],\"profiles\":["
+            reply(big?"SPECINFO {\"continuous\":true,\"transports\":[\"USB\"],\"profiles\":["
+                  "[16000000,6,256,2,1],[16000000,6,512,2,2],[16000000,6,1024,2,4],[16000000,6,2048,3,7],[16000000,6,4096,3,7],"
+                  "[40000000,1,256,5,3],[40000000,1,512,5,5],[40000000,1,1024,5,9],[40000000,1,2048,7,17],[40000000,1,4096,7,17],"
+                  "[80000000,0,256,10,6],[80000000,0,512,12,10],[80000000,0,1024,14,16],[80000000,0,2048,14,30],[80000000,0,4096,14,30]]}\n"
+                  :"SPECINFO {\"continuous\":true,\"transports\":[\"USB\"],\"profiles\":["
                   "[16000000,6,256,2,1],[16000000,6,512,2,2],[16000000,6,1024,2,4],[16000000,6,2048,3,7],"
                   "[40000000,1,256,5,3],[40000000,1,512,5,5],[40000000,1,1024,5,9],[40000000,1,2048,7,17],"
                   "[80000000,0,256,10,6],[80000000,0,512,12,10],[80000000,0,1024,14,16],[80000000,0,2048,14,30]]}\n");
         else
-        reply("SPECINFO {\"continuous\":true,\"transports\":[\"USB\"],\"profiles\":["
+        reply(big?"SPECINFO {\"continuous\":true,\"transports\":[\"USB\"],\"profiles\":["
+              "[16000000,6,256,4,2],[16000000,6,512,6,3],[16000000,6,1024,8,4],[16000000,6,2048,6,8],[16000000,6,4096,6,8],"
+              "[40000000,1,256,12,4],[40000000,1,512,12,6],[40000000,1,1024,18,10],[40000000,1,2048,10,20],[40000000,1,4096,10,20],"
+              "[80000000,0,256,48,8],[80000000,0,512,32,12],[80000000,0,1024,24,16],[80000000,0,2048,16,24],[80000000,0,4096,16,24]]}\n"
+              :"SPECINFO {\"continuous\":true,\"transports\":[\"USB\"],\"profiles\":["
               "[16000000,6,256,4,2],[16000000,6,512,6,3],[16000000,6,1024,8,4],[16000000,6,2048,6,8],"
               "[40000000,1,256,12,4],[40000000,1,512,12,6],[40000000,1,1024,18,10],[40000000,1,2048,10,20],"
               "[80000000,0,256,48,8],[80000000,0,512,32,12],[80000000,0,1024,24,16],[80000000,0,2048,16,24]]}\n");
@@ -278,8 +288,8 @@ static bool ring_command(const char *line) {
     if(!strcmp(line,"RINGINFO?")) {
         /* The ring reserves 192 KiB of SRAM; report what the heap kept. */
         char h[96];
-        snprintf(h,sizeof(h),"RINGINFO %u %u %u %u\n",(unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
-                 (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT),RING_BANKS,RING_THRESHOLD);
+        snprintf(h,sizeof(h),"RINGINFO %u %u %u %u %u %u %u\n",(unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT),
+                 (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT),RING_BANKS,RING_THRESHOLD,(unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),ring_capture_nfft_max(),(unsigned)ring_capture_core1_alive());
         reply(h);return true;
     }
     if(sscanf(line,"RING %u %u %c",&ms,&rate,&extra)==2) {

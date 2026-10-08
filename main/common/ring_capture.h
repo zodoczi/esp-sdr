@@ -32,7 +32,10 @@
 #if !CONFIG_IDF_TARGET_ESP32S3
 #define RING_SPEC_NFFT_MAX 256u
 #else
-#define RING_SPEC_NFFT_MAX 2048u         /* SPEC FFT sizes: 256, 512, 1024, 2048 */
+/* SPEC FFT sizes 256 ... 4096. 4096 needs PSRAM for the accumulators (boards with
+ * embedded PSRAM, e.g. N16R8); without PSRAM the limit stays 2048. */
+#define RING_SPEC_NFFT_MAX 4096u
+#define RING_SPEC_NFFT_INTERNAL 2048u
 
 #endif
 
@@ -103,6 +106,7 @@ void ring_capture_run(const ring_config_t *config, ring_result_t *result);
 const uint32_t *ring_capture_bank(unsigned bank);
 unsigned ring_capture_rate_hz(unsigned rate);
 bool ring_capture_valid_nfft(unsigned n);
+unsigned ring_capture_nfft_max(void); /* largest SPEC FFT size this board supports */
 /* 0 Hz handling after the FFT: 0 = notch bin 0, 1 = slow DC tracker (default). */
 #define ring_capture_dc_mode spectrum_dc_mode
 #if CONFIG_IDF_TARGET_ESP32S3
