@@ -259,10 +259,12 @@ static bool ring_command(const char *line) {
     if(sscanf(line,"LBSTAT %u %c",&n,&extra)==1 && n<2){ring_capture_lb_metrics=n;reply(SPEC_LB_METRICS?"OK\n":"ERR disabled\n");return true;}
     if(!strcmp(line,"ASSIST?")){
         /* First two fields unchanged; balancer diagnostics appended (SPECBAL). */
-        const ring_assist_stats_t *a=&ring_capture_assist_stats;char h[200];
-        snprintf(h,sizeof(h),"ASSIST %u %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 "\n",
+        const ring_assist_stats_t *a=&ring_capture_assist_stats;char h[320];
+        snprintf(h,sizeof(h),"ASSIST %u %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32
+                 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 "\n",
                  (unsigned)ring_capture_assist,ring_capture_c0_blocks,a->acc_ffts,a->share_pm,a->c0_pm,a->c1_pm,a->margin,a->acc_mode,
-                 a->step_max,a->usb_gap_max,a->defer,a->acc_avail);
+                 a->step_max,a->usb_gap_max,a->defer,a->acc_avail,a->cost[0],a->cost[1],a->cost[2],a->cost0[0],a->cost0[1],a->cost0[2],
+                 a->claims,a->aborts,ring_capture_c1_timeouts,ring_capture_fast);
         reply(h);return true;}
     if(sscanf(line,"DUAL %u %c",&n,&extra)==1 && n<3){ring_capture_set_dual(n!=0);ring_capture_assist=n==1;reply("OK\n");return true;}
     ring_config_t c={0};

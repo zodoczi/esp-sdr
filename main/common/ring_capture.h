@@ -48,6 +48,7 @@ typedef enum {
     RING_FAIL_END,       /* unit end not inside its sentinel window */
     RING_FAIL_LENGTH,    /* implausible unit length: detail = pairs */
     RING_FAIL_TRANSPORT, /* SPEC requested over UART */
+    RING_FAIL_CORE1,     /* core 1 did not finish within the end-of-run timeout: detail = units taken */
 } ring_status_t;
 
 typedef enum { RING_MODE_STATS, RING_MODE_CAPTURE, RING_MODE_SPEC, RING_MODE_IQ } ring_mode_t;
@@ -127,7 +128,13 @@ typedef struct {
     uint32_t usb_gap_max; /* longest wait of queued USB output for a pump, cycles */
     uint32_t defer;       /* core-0 claims deferred: hand-off slot full */
     uint32_t acc_avail;   /* core-0 accumulators allocated */
+    uint32_t cost[3];     /* final gating cost per step kind (copy, stage, acc), cycles */
+    uint32_t cost0[3];    /* warm-up measurement per step kind, cycles */
+    uint32_t claims;      /* blocks core 0 claimed */
+    uint32_t aborts;      /* core-0 copies dropped because the bank was needed */
 } ring_assist_stats_t;
+extern uint32_t ring_capture_c1_timeouts;
+extern uint32_t ring_capture_fast; /* last SPEC run: bit 0 window, bit 1 accumulator in borrowed internal SRAM */ /* end-of-run waits for core 1 that timed out */
 extern ring_assist_stats_t ring_capture_assist_stats;
 /* Load-balancer benchmark metrics (step_max, usb_gap_max, defer). Compile-time
  * switch SPEC_LB_METRICS (default on); runtime LBSTAT 0|1. When off at compile

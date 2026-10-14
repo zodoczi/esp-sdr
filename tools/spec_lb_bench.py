@@ -95,7 +95,7 @@ def main():
                 r = run_spec(ser, nfft, rate, a.seconds)
                 e = r["end"] or []
                 ast = cmd(ser, "ASSIST?").split()[1:]
-                ast += ["0"] * (12 - len(ast))
+                ast += ["0"] * (22 - len(ast))
                 sps = r["sps"][1:] or r["sps"]
                 avg = lambda k: sum(s[k] for s in sps) / len(sps) if sps else 0
                 el_s = int(e[5]) / 1e6 if len(e) > 5 else a.seconds
@@ -110,7 +110,9 @@ def main():
                            step_max_us=round(int(ast[8]) / 240, 1), usb_gap_max_us=round(int(ast[9]) / 240, 1),
                            handoff_defer=ast[10], acc_mode=ast[7], margin=ast[6],
                            frames=r["frames"], drops=e[9] if len(e) > 9 else "",
-                           abandoned=e[10] if len(e) > 10 else "", crc_err=r["crc_err"])
+                           abandoned=e[10] if len(e) > 10 else "", crc_err=r["crc_err"],
+                           c0_claims=ast[18], c0_aborts=ast[19], c1_timeouts=ast[20], fast=ast[21],
+                           cost_cp_st_acc="/".join(ast[12:15]), warm_cp_st_acc="/".join(ast[15:18]))
                 rows.append(row)
                 print(" ".join(f"{k}={v}" for k, v in row.items()), flush=True)
     cmd(ser, "DUAL 1")
