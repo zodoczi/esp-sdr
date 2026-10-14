@@ -84,7 +84,7 @@ commands into that uncertain stream. Reconnection reacquires the serial lease.
 | 0 | u32 | ASCII `SPS1` |
 | 4, 6 | u16 | Core 0 / core 1 processing load, per mille |
 | 8 | u16 | Fraction of samples analyzed by FFT, per mille |
-| 10 | u16 | Bit 0: dual core; bit 1: core 0 assists FFTs |
+| 10 | u16 | Bit 0: dual core; bit 1: core 0 assists FFTs; bit 2: staged assist (`SPECSLICE`) |
 | 12, 16 | u32 | Free internal heap / largest block before capture, bytes |
 | 20, 24 | u32 | Cumulative abandoned work / dropped frames |
 | 28, 30 | u16 | Maximum bank lateness in samples / output queue fill per mille |
@@ -108,6 +108,14 @@ S3 uses three SRAM banks and a bare second-core worker for SIMD unpacking,
 FFT, power accumulation and encoding. Core 0 owns bank rotation and USB and
 assists with FFTs when its deadline permits. Bank revocation waits for active
 readers before giving SRAM back to the RF writer. DC state has one owner.
+When `CAPS` lists `SPECSLICE`, core 0 assists in bounded steps: it copies a
+claimed block out of its bank in one step, then runs one radix-2 FFT stage per
+free poll slot and hands the result to core 1. A whole 2048/4096-point FFT
+never fit between two 40/80 MS/s bank deadlines, so the earlier all-in-one
+assist did not run at those rates. A hand-off FFT is merged into the frame
+being accumulated when it completes, which may be the frame after the one
+whose sample span contains it (at most a few ms later). The frame format is
+unchanged; only the FFT count per frame increases.
 `DUAL 0` selects the single-core fallback, `DUAL 1` enables the worker with
 assistance (default), and `DUAL 2` disables assistance. `DUAL?` returns the
 active mode and whether the worker booted; re-query `SPECINFO?` after changing
