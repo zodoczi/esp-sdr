@@ -116,6 +116,43 @@ assist did not run at those rates. A hand-off FFT is merged into the frame
 being accumulated when it completes, which may be the frame after the one
 whose sample span contains it (at most a few ms later). The frame format is
 unchanged; only the FFT count per frame increases.
+When `CAPS` lists `SPECBAL`, the assist is adaptive. Both cores pull blocks
+from one lock-free cursor (compare-and-set). Core 0 chains as many bounded steps
+(block copy, FFT stage, 512-bin accumulate) as fit before the next bank deadline,
+minus a safety margin that doubles after any switch later than a quarter of the
+late limit and shrinks slowly after clean windows. A slot is also capped at
+24,000 cycles (100 µs), after which the loop polls the ring, USB output and host
+input again. Every 64 units the balancer compares both cores' busy time. If core 1
+is saturated (>90 %) and core 0 has headroom, core 0 also does DC correction and
+power accumulation into its own accumulator pair, and core 1 merges the retired
+one once per frame. Once core 1 drops below 75 %, core 0 goes back to hand-offs.
+The extra accumulators come from PSRAM (4096 bins) or are skipped when internal
+SRAM is short, so 2048/no-PSRAM boards fall back to hand-offs. SPS1 `mode` bit 3
+reports accumulate mode and bits 8–15 core 0's share of the window's FFTs, in
+percent. `ASSIST?` keeps its first two fields and appends:
+`acc_ffts share_pm c0_pm c1_pm margin_pairs acc_mode step_max_cycles
+usb_gap_max_cycles handoff_defer acc_available` for the last run.
+
+### Never-block rules (S3 SPEC)
+
+Hard requirements for the dual-core path; new code must be checked against them:
+
+1. Core 0 owns bank switching and USB, and never waits for core 1 on a lock.
+   Cores share only lock-free single-writer flags and counters (plus the CAS
+   block cursor). No mutex or spinlock is held across an FFT step. The existing
+   waits are bounded. Core 0's revocation waits at most one 256-sample core-1
+   copy. Core 1 waits at most one core-0 block copy before closing a unit.
+2. Core 1 never blocks on a hand-off. When the slot is full, core 0 defers its
+   next claim (counted as `handoff_defer`). An unanswered accumulator-exchange
+   request is retried later by both sides.
+3. Every core-0 step is bounded and deadline-gated against its worst observed
+   cost (`step_max_cycles`). The stop byte and `T` lines are still checked once
+   per unit, and the queued USB output's longest wait is reported
+   (`usb_gap_max_cycles`).
+4. During a run, interrupts are masked and the task/interrupt watchdogs are
+   disabled by design (see above). The run therefore cannot yield to FreeRTOS.
+   Its length is bounded by the duration, stop byte and 2 s host-stall timeout.
+
 `DUAL 0` selects the single-core fallback, `DUAL 1` enables the worker with
 assistance (default), and `DUAL 2` disables assistance. `DUAL?` returns the
 active mode and whether the worker booted; re-query `SPECINFO?` after changing

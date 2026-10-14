@@ -116,4 +116,24 @@ bool ring_capture_dual_active(void);
 void ring_capture_set_dual(bool on);
 extern bool ring_capture_assist;     /* core 0 helps core 1 between bank switches */
 extern uint32_t ring_capture_c0_blocks; /* blocks core 0 handed off in the last run */
+/* Last SPEC run's core-0 assist/balancer diagnostics (ASSIST?). */
+typedef struct {
+    uint32_t acc_ffts;    /* FFTs core 0 accumulated itself */
+    uint32_t share_pm;    /* FFTs computed by core 0, per mille of all */
+    uint32_t c0_pm, c1_pm;/* last balancer window load, per mille */
+    uint32_t margin;      /* final deadline safety margin, pairs */
+    uint32_t acc_mode;    /* final mode: 1 = core 0 accumulates */
+    uint32_t step_max;    /* longest core-0 assist step, cycles */
+    uint32_t usb_gap_max; /* longest wait of queued USB output for a pump, cycles */
+    uint32_t defer;       /* core-0 claims deferred: hand-off slot full */
+    uint32_t acc_avail;   /* core-0 accumulators allocated */
+} ring_assist_stats_t;
+extern ring_assist_stats_t ring_capture_assist_stats;
+/* Load-balancer benchmark metrics (step_max, usb_gap_max, defer). Compile-time
+ * switch SPEC_LB_METRICS (default on); runtime LBSTAT 0|1. When off at compile
+ * time the measuring code is removed; when off at run time it costs one branch. */
+#ifndef SPEC_LB_METRICS
+#define SPEC_LB_METRICS 1
+#endif
+extern bool ring_capture_lb_metrics;
 #endif

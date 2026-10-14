@@ -66,6 +66,11 @@ int s3_fft2r_sc16_rnd_stage(int16_t *data, int N, int16_t *w, unsigned stage);
 #else
 #define RING_HOT
 #endif
+#if SPEC_LB_METRICS
+#define LBM_ON() (ring_capture_lb_metrics)
+#else
+#define LBM_ON() (false)
+#endif
 #define RING_MASK (RING_PAIRS - 1u)
 #define THRESHOLD RING_THRESHOLD
 #define SENTINEL 0xA5C33C5Au
@@ -363,6 +368,11 @@ static int16_t *fft_buf; /* 2 * nfft_max, internal, 16-byte aligned */
 #endif
 static float *accum_buf[ACCUM_BUFS];
 static float *accum;
+#if CONFIG_IDF_TARGET_ESP32S3
+/* Core-0 accumulator pair (adaptive balancing, optional): core 0 accumulates its
+ * own FFTs into the active one, core 1 merges the retired one once per frame. */
+static float *acc0_buf[2];
+#endif
 static uint16_t *bin_of; /* FFT output slot -> natural-order bin */
 static unsigned nfft_max;
 #define FRAME_OUT_SIZE (sizeof(spec_header_t) + nfft_max + 4)
@@ -379,6 +389,9 @@ static void *alloc_bulk(size_t n) {
 }
 static void accum_clear(void) {
     for (unsigned b = 0; b < ACCUM_BUFS; b++) memset(accum_buf[b], 0, nfft_max * sizeof(float));
+#if CONFIG_IDF_TARGET_ESP32S3
+    for (unsigned b = 0; b < 2; b++) if (acc0_buf[b]) memset(acc0_buf[b], 0, nfft_max * sizeof(float));
+#endif
     accum = accum_buf[0];
 }
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -391,6 +404,7 @@ static void spec_buffers_free(void) {
 #if CONFIG_IDF_TARGET_ESP32S3
     heap_caps_free(hbuf); hbuf = NULL;
     heap_caps_free(win2); win2 = NULL;
+    for (unsigned b = 0; b < 2; b++) { heap_caps_free(acc0_buf[b]); acc0_buf[b] = NULL; }
 #endif
     heap_caps_free(fft_buf); fft_buf = NULL;
 }
@@ -452,6 +466,16 @@ void ring_capture_init(void) {
     static int16_t *twiddles;
     if(!twiddles)twiddles=heap_caps_aligned_alloc(16,nfft_max*sizeof(int16_t),MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT);
     dsp_ready = twiddles && dsps_fft2r_init_sc16(twiddles,nfft_max)==ESP_OK;
+    /* Optional core-0 accumulators, allocated last so they never take memory the
+     * mandatory buffers need: PSRAM with 4096 bins; internal only with ample room. */
+    if (dsp_ready && hbuf && !acc0_buf[0]) {
+        size_t sz = nfft_max * sizeof(float);
+        bool ok = nfft_max > RING_SPEC_NFFT_INTERNAL ||
+                  heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) >= 2 * sz + 16384u;
+        for (unsigned b = 0; ok && b < 2; b++) ok = (acc0_buf[b] = alloc_bulk(sz)) != NULL;
+        if (!ok) for (unsigned b = 0; b < 2; b++) { heap_caps_free(acc0_buf[b]); acc0_buf[b] = NULL; }
+        else for (unsigned b = 0; b < 2; b++) memset(acc0_buf[b], 0, sz);
+    }
     log_tables_init();
     if(dsp_ready)c1_start();
 #endif
@@ -585,12 +609,14 @@ _Static_assert(sizeof(spec_stats_t) == 36, "SPS1 layout");
 static volatile struct { uint32_t c0_busy, c1_busy; } ld; /* busy cycles, own core each */
 static struct {
     bool started;
-    uint32_t t0, c0, c1, ffts, pairs, pairs_done;
+    uint32_t t0, c0, c1, ffts, pairs, pairs_done, c0f;
     uint32_t heap_free, heap_largest;
     uint16_t mode;
 } sx;
 static bool c1_txq_push(const uint8_t *d, uint32_t n);
 static bool txq_push(const void *data, size_t n);
+static uint32_t c0_ffts_total(void);
+static volatile uint32_t c0_acc_mode; /* core 0 accumulates its own FFTs (SPS1 mode bit 3) */
 
 IRAM_ATTR static void stats_maybe(bool core1_side) {
     uint32_t now = esp_cpu_get_cycle_count(); /* producer's own clock */
@@ -601,6 +627,7 @@ IRAM_ATTR static void stats_maybe(bool core1_side) {
         sx.c1 = ld.c1_busy;
         sx.ffts = st.res->ffts;
         sx.pairs = sx.pairs_done;
+        sx.c0f = c0_ffts_total();
         return;
     }
     uint32_t dt = now - sx.t0;
@@ -617,7 +644,11 @@ IRAM_ATTR static void stats_maybe(bool core1_side) {
     m.c1_pm = (uint16_t)(v > 1000 ? 1000 : v);
     v = dp >= 1000u ? (df * spec_n) / (dp / 1000u) : 0;
     m.cov_pm = (uint16_t)(v > 1000 ? 1000 : v);
-    m.mode = sx.mode;
+    /* bits 8-15: share of this window's FFTs computed by core 0, percent */
+    uint32_t c0f = c0_ffts_total(), share = df ? (c0f - sx.c0f) * 100u / df : 0;
+    if (share > 100u) share = 100u;
+    m.mode = (uint16_t)((sx.mode & 0xffu) | (c0_acc_mode ? 8u : 0u) | (share << 8));
+    sx.c0f = c0f;
     m.heap_free = sx.heap_free;
     m.heap_largest = sx.heap_largest;
     m.abandoned = r->abandoned;
@@ -1138,8 +1169,45 @@ IRAM_ATTR static void c1_encode_step(void) {
     if (st.cfg->stats) stats_maybe(true);
 }
 
+/* Core-0 accumulator exchange, lock-free, one single writer per field:
+ *   core 1 (at a frame emission): req++ when the previous one is merged;
+ *   core 0 (between FFTs, never mid-accumulation): active ^= 1, ack = req;
+ *   core 1: merges acc0_buf[active ^ 1] into its own accumulator, zeroes it,
+ *           adds its FFT count, merged = req.
+ * Neither core ever waits for the other here: an unanswered request is simply
+ * looked at again later. Core 0's FFTs land one frame late, like hand-offs. */
+static volatile struct {
+    uint32_t req, ack, merged, active;
+    uint32_t count[2];   /* FFTs per buffer: core 0 increments the active one */
+    uint32_t ffts;       /* core-0-accumulated FFTs merged (whole run, core 1) */
+} ca;
+IRAM_ATTR static void c1_merge_buf(unsigned i) {
+    uint32_t n = ca.count[i];
+    if (!n) return;
+    float *src = acc0_buf[i];
+    if (st.cfg->max_hold) {
+        uint32_t *d = (uint32_t *)accum, *a = (uint32_t *)src;
+        for (unsigned k = 0; k < spec_n; k++) { if (a[k] > d[k]) d[k] = a[k]; a[k] = 0; }
+    } else {
+        for (unsigned k = 0; k < spec_n; k++) { accum[k] += src[k]; src[k] = 0.0f; }
+    }
+    st.frame_ffts += n;
+    st.res->ffts += n;
+    ca.ffts += n;
+    MEMW();
+    ca.count[i] = 0;
+}
+IRAM_ATTR static void c1_merge_poll(void) {
+    if (!acc0_buf[0] || ca.merged == ca.req || ca.ack != ca.req) return;
+    MEMW();
+    c1_merge_buf(ca.active ^ 1u);
+    MEMW();
+    ca.merged = ca.req;
+}
 IRAM_ATTR static void c1_emit_frame(void) {
-    while (c1enc.pending) c1_encode_step(); /* frame_out holds the previous frame */
+    while (c1enc.pending) c1_encode_step();
+    c1_merge_poll();
+    if (acc0_buf[0] && ca.merged == ca.req) { ca.req = ca.req + 1u; MEMW(); } /* frame_out holds the previous frame */
     ring_result_t *r = st.res;
     spec_header_t h;
     h.magic = SPEC_MAGIC;
@@ -1226,13 +1294,29 @@ static volatile struct {
     uint32_t c0_unpacked;/* blocks core 0 copied out of a bank (whole run, core 0 writes) */
     uint32_t c0_blocks;  /* blocks core 0 handed off (whole run) */
 } cl;
-/* Core-0 assist pipeline (core 0 private). The block is copied (unpack + window)
- * out of the bank in one bounded step; from then on it no longer depends on the
- * ring, and the FFT runs one radix-2 stage per poll slot. A whole 2048/4096-point
- * FFT never fits between two 80/40 MS/s ring deadlines, so the former all-in-one
- * assist was never scheduled at those rates; stages (~3-7 k cycles) do fit. */
-enum { C0_IDLE, C0_FFT };
-static struct { uint32_t state, stage; } c0p;
+/* Core-0 assist pipeline (core 0 private), adaptive. Blocks come from the
+ * shared lock-free cursor (claim_block, CAS) both cores pull from. Each step is
+ * bounded and runs only if its worst observed cost fits before the next ring
+ * deadline minus an adaptive safety margin; steps that fit are chained in one
+ * poll slot, then the loop re-polls the ring, USB and host input.
+ *   COPY  unpack + window one claimed block out of its bank (bank released after)
+ *   FFT   one radix-2 stage
+ *   ACC   (accumulate mode) DC correction + power of C0_ACC_CHUNK bins into core 0's
+ *         own accumulator; otherwise the FFT is handed to core 1 (hbuf).
+ * Never-block rules (docs/spectrum.md): core 0 never waits for core 1 here;
+ * a full hand-off slot defers core 0 (counted), never core 1. */
+enum { C0_IDLE, C0_FFT, C0_ACC };
+enum { C0S_COPY, C0S_STAGE, C0S_ACC, C0S_N };
+#define C0_ACC_CHUNK 512u
+static struct {
+    uint32_t state, stage, pos;
+    uint32_t cost[C0S_N];   /* worst cycles seen per step kind (gating) */
+    uint32_t step_max;      /* diagnostics: longest single step */
+    uint32_t defer;         /* diagnostics: claims deferred because the hand-off slot was full */
+    uint32_t acc_ffts;      /* FFTs core 0 accumulated (whole run) */
+    spectrum_dc_t dc;       /* snapshot of core 1's DC estimate for this FFT */
+} c0p;
+static uint32_t c0_ffts_total(void) { return cl.c0_blocks + ca.ffts; }
 static int16_t *hbuf; /* 4 * nfft_max bytes, heap: BSS must end below the RF ring */
 
 IRAM_ATTR static bool claim_block(uint32_t *out) {
@@ -1323,40 +1407,80 @@ IRAM_ATTR static void c1_unit(const c1_unit_t *u) {
     }
     st.frame_pairs += u->count;
     sx.pairs_done += u->count;
+    c1_merge_poll();
     if (++st.frame_units && st.frame_ffts && !c1enc.pending && txq_head==txq_tail)
         c1_emit_frame();
     ld.c1_busy += esp_cpu_get_cycle_count() - tu;
 }
 
-/* Core 0: one bounded step of the assist pipeline per call (see c0p).
- * Called from the poll loop only when the slowest step seen still fits before
- * the next ring deadline. Returns true when it did something. */
-IRAM_ATTR static bool c0_assist(void) {
+/* One step; returns the step kind done, or C0S_N when there is nothing to do. */
+IRAM_ATTR static unsigned c0_step(bool claim) {
     if (c0p.state == C0_FFT) {
         S3_FFT_STAGE(hbuf, spec_n, c0p.stage);
-        if (++c0p.stage < spec_log2) return true;
-        cl.hb_seq = 0; /* detached from its unit */
+        if (++c0p.stage < spec_log2) return C0S_STAGE;
+        if (c0_acc_mode && acc0_buf[0]) {
+            c0p.state = C0_ACC;
+            c0p.pos = 0;
+            return C0S_STAGE;
+        }
+        cl.hb_seq = 0; /* detached from its unit; slot was free when the block was claimed */
         MEMW();
         cl.hb_full = 1;
         cl.c0_blocks++;
         MEMW();
         c0p.state = C0_IDLE;
-        return true;
+        return C0S_STAGE;
     }
-    if (cl.hb_full) return false; /* core 1 has not taken the previous one yet */
+    if (c0p.state == C0_ACC) {
+        if (!c0p.pos) {
+            /* DC: core 1 owns the tracker; apply a snapshot of its estimate without
+             * updating it (DC 0 is per-FFT and identical; DC 1 lags < 1/64 step). */
+            c0p.dc = *(const spectrum_dc_t *)&dc;
+            spectrum_dc_apply(&c0p.dc, hbuf, spec_n);
+        }
+        unsigned a = ca.active, end = c0p.pos + C0_ACC_CHUNK;
+        if (end > spec_n) end = spec_n;
+        const int16_t *x = hbuf + 2 * c0p.pos;
+        if (st.cfg->max_hold) {
+            uint32_t *pk = (uint32_t *)acc0_buf[a];
+            for (unsigned k = c0p.pos; k < end; k++, x += 2) {
+                int32_t re = x[0], im = x[1];
+                uint32_t power = (uint32_t)(re * re) + (uint32_t)(im * im);
+                if (power > pk[k]) pk[k] = power;
+            }
+        } else {
+            float *ac = acc0_buf[a];
+            for (unsigned k = c0p.pos; k < end; k++, x += 2) {
+                int32_t re = x[0], im = x[1];
+                ac[k] += (float)((uint32_t)(re * re) + (uint32_t)(im * im));
+            }
+        }
+        c0p.pos = end;
+        if (end == spec_n) {
+            MEMW();
+            ca.count[a] = ca.count[a] + 1u;
+            c0p.acc_ffts++;
+            c0p.state = C0_IDLE;
+        }
+        return C0S_ACC;
+    }
+    /* Idle: between FFTs is the only place the accumulator may be retired. */
+    if (ca.ack != ca.req) { ca.active ^= 1u; MEMW(); ca.ack = ca.req; MEMW(); }
+    if (!claim || !hbuf) return C0S_N;
+    if (cl.hb_full) { if (LBM_ON()) c0p.defer++; return C0S_N; } /* core 1 not ready: core 0 defers */
     uint32_t seq = cl.seq;
-    if (!seq) return false;
+    if (!seq) return C0S_N;
     cl.c0_seq = seq;
     MEMW();
     uint32_t blk;
     if (cl.seq != seq || !claim_block(&blk)) {
         cl.c0_seq = 0;
-        return false;
+        return C0S_N;
     }
     unsigned bank = cl.bank;
     if (c1.bank_seq[bank] != seq) { /* revoked meanwhile (core 0 itself) */
         cl.c0_seq = 0;
-        return false;
+        return C0S_N;
     }
     unpack_to(hbuf, bank_ptr(bank), cl.first + (blk << spec_log2));
     cl.c0_unpacked++; /* counted done for its unit: the bank is no longer needed */
@@ -1364,7 +1488,59 @@ IRAM_ATTR static bool c0_assist(void) {
     cl.c0_seq = 0;
     c0p.state = C0_FFT;
     c0p.stage = 0;
-    return true;
+    return C0S_COPY;
+}
+static inline unsigned c0_next_kind(void) {
+    return c0p.state == C0_FFT ? C0S_STAGE : c0p.state == C0_ACC ? C0S_ACC : C0S_COPY;
+}
+/* Chain steps within budget cycles (also capped at C0_SLOT_MAX so USB and host
+ * input are serviced at least that often). Returns the cycles used. */
+#define C0_SLOT_MAX 24000u /* 100 us at 240 MHz */
+IRAM_ATTR static uint32_t c0_assist(uint32_t budget) {
+    if (budget > C0_SLOT_MAX) budget = C0_SLOT_MAX;
+    uint32_t used = 0;
+    for (;;) {
+        unsigned kind = c0_next_kind();
+        if (used + c0p.cost[kind] > budget) break;
+        uint32_t t0 = esp_cpu_get_cycle_count();
+        unsigned done = c0_step(true);
+        uint32_t dt = esp_cpu_get_cycle_count() - t0;
+        used += dt;
+        if (LBM_ON() && dt > c0p.step_max) c0p.step_max = dt;
+        if (done == C0S_N) break;
+        if (dt > c0p.cost[done]) c0p.cost[done] = dt;
+    }
+    return used;
+}
+/* Balancer state (core 0), refreshed every C0_WINDOW units (~10 ms at 80 MS/s). */
+#define C0_WINDOW 64u
+static struct {
+    uint32_t t, c0, c1, units, clean;
+    uint32_t margin;               /* extra pairs kept free before each deadline */
+    uint16_t c0_pm, c1_pm;         /* last window's load, per mille */
+} bal;
+ring_assist_stats_t ring_capture_assist_stats;
+bool ring_capture_lb_metrics = true;
+IRAM_ATTR static void c0_balance(uint32_t late) {
+    /* Deadline safety: a late switch widens the margin at once, clean windows shrink it. */
+    if (late > LATE_LIMIT / 4u) { bal.margin = bal.margin * 2u > 4096u ? 4096u : bal.margin * 2u; bal.clean = 0; }
+    else if (++bal.clean >= C0_WINDOW) { bal.clean = 0; if (bal.margin > 256u) bal.margin -= 64u; }
+    if (++bal.units < C0_WINDOW) return;
+    bal.units = 0;
+    uint32_t now = esp_cpu_get_cycle_count(), c0 = ld.c0_busy, c1v = ld.c1_busy;
+    uint32_t dt = (now - bal.t) / 1000u;
+    if (dt) {
+        uint32_t p0 = (c0 - bal.c0) / dt, p1 = (c1v - bal.c1) / dt;
+        bal.c0_pm = (uint16_t)(p0 > 1000u ? 1000u : p0);
+        bal.c1_pm = (uint16_t)(p1 > 1000u ? 1000u : p1);
+        /* Core 1 saturated and core 0 has room: core 0 also accumulates.
+         * Core 1 has spare time: hand off again (core 0 then fits more FFTs). */
+        if (acc0_buf[0]) {
+            if (!c0_acc_mode && bal.c1_pm > 900u && bal.c0_pm + 100u < bal.c1_pm) c0_acc_mode = 1;
+            else if (c0_acc_mode && bal.c1_pm < 750u) c0_acc_mode = 0;
+        }
+    }
+    bal.t = now; bal.c0 = c0; bal.c1 = c1v;
 }
 
 /* IQS on core 1: same pipeline as iqs_slice, bank guarded like c1_unit. */
@@ -1433,7 +1609,12 @@ IRAM_ATTR void s3_core1_main(void) {
                 c1rt.done = req;
             }
             if (taken == c1.posted) {
-                if (cl.hb_full && st.cfg->mode == RING_MODE_SPEC) c1_take_handoff();
+                if (st.cfg->mode == RING_MODE_SPEC && (cl.hb_full || (ca.ack == ca.req && ca.merged != ca.req))) {
+                    uint32_t ti = esp_cpu_get_cycle_count();
+                    if (cl.hb_full) c1_take_handoff();
+                    c1_merge_poll();
+                    ld.c1_busy += esp_cpu_get_cycle_count() - ti;
+                }
                 c1_encode_step();
                 if (!c1.end) continue;
                 MEMW();
@@ -1446,7 +1627,14 @@ IRAM_ATTR void s3_core1_main(void) {
             c1.taken = taken;
             c1_encode_step();
         }
-        if (cl.hb_full && st.cfg->mode == RING_MODE_SPEC) c1_take_handoff(); /* core 0 has stopped */
+        if (st.cfg->mode == RING_MODE_SPEC) { /* core 0 has stopped: collect everything */
+            if (cl.hb_full) c1_take_handoff();
+            if (acc0_buf[0]) {
+                c1_merge_buf(0);
+                c1_merge_buf(1);
+                ca.merged = ca.ack = ca.req;
+            }
+        }
         if (st.frame_units) c1_emit_frame();
         while (c1enc.pending) c1_encode_step();
         MEMW();
@@ -1624,12 +1812,19 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
     /* Slowest single assist step: the block copy or one FFT stage (warm-up
      * measurement + margin); grows to the max seen. */
     uint32_t c0_cost = assist_cost + assist_cost / 3u;
+    memset(&c0p, 0, sizeof(c0p));
+    c0p.cost[C0S_COPY] = c0p.cost[C0S_STAGE] = c0p.cost[C0S_ACC] = c0_cost;
+    memset(&bal, 0, sizeof(bal));
+    bal.margin = 256u;
+    bal.t = esp_cpu_get_cycle_count();
+    c0_acc_mode = 0;
+    ca.req = ca.ack = ca.merged = ca.active = ca.count[0] = ca.count[1] = ca.ffts = 0;
+    uint32_t usb_last = esp_cpu_get_cycle_count(), usb_gap_max = 0;
     rt_core1 = RING_RETUNE_ON_CORE1 && dual && iq && cfg->retune;
     c1rt.req = c1rt.done = c1rt.count = c1rt.max = 0;
     if (dual) { /* hand the run to core 1 (idle since its last run) */
         c1.posted = c1.taken = c1.end = c1.done = c1.busy = c1.block_max = 0;
         cl.seq = cl.c0_seq = cl.hb_full = cl.c0_blocks = cl.c0_unpacked = 0;
-        c0p.state = C0_IDLE;
         for (unsigned i = 0; i < RING_BANKS; i++) c1.bank_seq[i] = 0;
         MEMW();
         c1.run = c1.run + 1u;
@@ -1745,9 +1940,17 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
                 LD_C0(esp_cpu_get_cycle_count() - tp);
                 continue;
             }
+#if CONFIG_IDF_TARGET_ESP32S3
+            if (LBM_ON()) { /* diagnostics: longest time USB output waited for a pump */
+                uint32_t nowc = esp_cpu_get_cycle_count();
+                if (*(volatile uint32_t *)&txq_head == txq_tail) usb_last = nowc;
+                else if (nowc - usb_last > usb_gap_max) usb_gap_max = nowc - usb_last;
+            }
+#endif
             if (written + 2048u < THRESHOLD && *(volatile uint32_t *)&txq_head != txq_tail) {
 #if CONFIG_IDF_TARGET_ESP32S3
                 uint32_t tq = esp_cpu_get_cycle_count();
+                if (LBM_ON()) usb_last = tq;
                 txq_pump();
                 ld.c0_busy += esp_cpu_get_cycle_count() - tq;
 #else
@@ -1765,17 +1968,12 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
             if (dual && spec && ring_capture_assist) {
                 /* one core-0 block (unpack + FFT) must end before the bank
                  * preparation deadline, or before the switch if prepared */
-                uint32_t c0_pairs = c0_cost / cpp + 256u;
                 uint32_t limit = prepared || !need_next ? THRESHOLD + LATE_LIMIT / 2
                                                         : THRESHOLD - prep_pairs - LATE_LIMIT;
-                if (written + c0_pairs < limit) {
-                    uint32_t t0 = esp_cpu_get_cycle_count();
-                    if (c0_assist()) {
-                        uint32_t dt = esp_cpu_get_cycle_count() - t0;
-                        if (dt > c0_cost) c0_cost = dt;
-                        ld.c0_busy += dt;
-                    }
-                    continue; /* re-poll: the step may have used most of the slot */
+                uint32_t reserve = written + 256u + bal.margin;
+                if (reserve < limit) {
+                    uint32_t used = c0_assist((limit - reserve) * cpp);
+                    if (used) { ld.c0_busy += used; continue; } /* re-poll ring/USB/input */
                 }
             }
 #endif
@@ -1826,6 +2024,9 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
 
         uint32_t late = written - THRESHOLD;
         if (late > r->late_max) r->late_max = late;
+#if CONFIG_IDF_TARGET_ESP32S3
+        if (dual && spec && ring_capture_assist) c0_balance(late);
+#endif
         if (late > LATE_LIMIT) { fail(r, RING_FAIL_LATE, written); break; }
 
         /* 2. Stop or switch. */
@@ -1919,6 +2120,8 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
 #else
     if (dual) {
         MEMW();
+        if (spec && ring_capture_assist) /* ring stopped: finish core 0's FFT in flight */
+            while (c0p.state != C0_IDLE) (void)c0_step(false);
         c1.end = 1;
         MEMW();
         while (!c1.done) txq_pump();
@@ -1936,6 +2139,19 @@ RING_HOT void ring_capture_run(const ring_config_t *cfg, ring_result_t *r) {
         r->abandoned += c0_lost;
         r->work_max = c1.block_max; /* longest core-1 block (unpack..accumulate) */
         ring_capture_c0_blocks = cl.c0_blocks;
+        if (spec) {
+            ring_assist_stats_t *a = &ring_capture_assist_stats;
+            a->acc_ffts = c0p.acc_ffts;
+            a->share_pm = r->ffts ? (cl.c0_blocks + c0p.acc_ffts) * 1000u / r->ffts : 0;
+            a->c0_pm = bal.c0_pm;
+            a->c1_pm = bal.c1_pm;
+            a->margin = bal.margin;
+            a->acc_mode = c0_acc_mode;
+            a->step_max = c0p.step_max;
+            a->usb_gap_max = usb_gap_max;
+            a->defer = c0p.defer;
+            a->acc_avail = acc0_buf[0] != NULL;
+        }
         if (iq) { iqs_flush(); r->ffts = iqs.lost_pairs; r->work_max = 0; fir_free(); }
     } else if (iq) {
         while (iqs_slice(4096u)) txq_pump();

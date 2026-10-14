@@ -255,7 +255,15 @@ static bool ring_command(const char *line) {
     {int off;if(sscanf(line,"FOFS %d %c",&off,&extra)==1){s3_fofs=off;rx_ready=false;prepare_rx();reply("OK\n");return true;}}
     if(!strcmp(line,"DC?")){char h[16];snprintf(h,sizeof(h),"DC %u\n",ring_capture_dc_mode);reply(h);return true;}
     if(sscanf(line,"DC %u %c",&n,&extra)==1 && n<2){ring_capture_dc_mode=n;reply("OK\n");return true;}
-    if(!strcmp(line,"ASSIST?")){char h[48];snprintf(h,sizeof(h),"ASSIST %u %" PRIu32 "\n",(unsigned)ring_capture_assist,ring_capture_c0_blocks);reply(h);return true;}
+    if(!strcmp(line,"LBSTAT?")){char h[32];snprintf(h,sizeof(h),"LBSTAT %u %u\n",(unsigned)ring_capture_lb_metrics,(unsigned)SPEC_LB_METRICS);reply(h);return true;}
+    if(sscanf(line,"LBSTAT %u %c",&n,&extra)==1 && n<2){ring_capture_lb_metrics=n;reply(SPEC_LB_METRICS?"OK\n":"ERR disabled\n");return true;}
+    if(!strcmp(line,"ASSIST?")){
+        /* First two fields unchanged; balancer diagnostics appended (SPECBAL). */
+        const ring_assist_stats_t *a=&ring_capture_assist_stats;char h[200];
+        snprintf(h,sizeof(h),"ASSIST %u %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 " %" PRIu32 "\n",
+                 (unsigned)ring_capture_assist,ring_capture_c0_blocks,a->acc_ffts,a->share_pm,a->c0_pm,a->c1_pm,a->margin,a->acc_mode,
+                 a->step_max,a->usb_gap_max,a->defer,a->acc_avail);
+        reply(h);return true;}
     if(sscanf(line,"DUAL %u %c",&n,&extra)==1 && n<3){ring_capture_set_dual(n!=0);ring_capture_assist=n==1;reply("OK\n");return true;}
     ring_config_t c={0};
     const char *tag;
@@ -396,7 +404,7 @@ static void handle_command(char *line) {
 #if CONFIG_ESP_SDR_UART_ENABLED
                   "DUALSERIAL "
 #endif
-                  "TUNEEXT RX40 RX16 LPFANA GAIN HWAGC IQ8 RING SPEC SPECN SPECCAPS SPECSTAT SPECSLICE DCT IQS IQTUNE\n");
+                  "TUNEEXT RX40 RX16 LPFANA GAIN HWAGC IQ8 RING SPEC SPECN SPECCAPS SPECSTAT SPECSLICE SPECBAL DCT IQS IQTUNE\n");
         }
         else if(sscanf(line,"BANDWIDTH %u %c",&n,&extra)==1 && (!n || (n>=RX_BANDWIDTH_MIN && n<=RX_BANDWIDTH_MAX))) {
             rx_filter=rx_bandwidth_dcap(n);reply("OK\n");
